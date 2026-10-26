@@ -13,9 +13,7 @@
     "db:init": "node src/db.js --init"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "postgres": "^3.4.5"
-  },
-  "devDependencies": {
-    "@anthropic-ai/sdk": "^1.3.0"
   }
 }

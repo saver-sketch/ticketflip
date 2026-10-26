@@ -8,13 +8,12 @@ importers:
 
   .:
     dependencies:
-      postgres:
-        specifier: ^3.4.5
-        version: 3.4.9
-    devDependencies:
       '@anthropic-ai/sdk':
         specifier: ^1.3.0
         version: 1.3.0
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.9
 
 packages:
 
