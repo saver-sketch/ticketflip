@@ -7,7 +7,9 @@ import { sql } from './db.js';
 import { PLAYBOOK as BASE, EXTRA } from './playbook-data.js';
 const PLAYBOOK = [...BASE, ...EXTRA];
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: [Partials.Channel] });
+// Message Content is a privileged intent (toggle in the dev portal → Bot). Without it the bot still sees @mentions.
+const withContent = process.env.NO_CONTENT_INTENT !== '1';
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, ...(withContent ? [GatewayIntentBits.MessageContent] : [])], partials: [Partials.Channel] });
 const anthropic = new Anthropic();
 const CHAT = process.env.DISCORD_CHAT_CHANNEL_ID;
 
@@ -50,4 +52,10 @@ client.on('messageCreate', async (msg) => {
   } catch (e) { console.error('chat', e.message); try { await msg.reply('Something broke on my side. Ask again in a minute.'); } catch {} }
 });
 client.once('ready', () => console.log(`chatbot online as ${client.user.tag}; answering in channel ${CHAT || 'any'}`));
-client.login(process.env.DISCORD_BOT_TOKEN);
+client.login(process.env.DISCORD_BOT_TOKEN).catch((e) => {
+  if (/disallowed intents/i.test(e.message) && withContent) {
+    console.log('Message Content intent is off in the dev portal → running mention-only (@Ticketflip). Flip it on to enable "?" questions.');
+    process.env.NO_CONTENT_INTENT = '1';
+    import('node:child_process').then(({ spawn }) => { const c = spawn(process.execPath, [new URL(import.meta.url).pathname], { stdio: 'inherit', env: process.env }); c.on('exit', (code) => process.exit(code ?? 0)); });
+  } else { console.error('login failed', e.message); process.exit(1); }
+});

@@ -84,5 +84,13 @@ export const EXTRA = [
     'Price alerts you set yourself: type `watch NVDA below 110` in the channel.',
     'An "ideas" list from a rules screener, labeled as ideas. **Nothing in #stocks is a buy or sell call.** Nobody has an edge picking stocks from a Discord, including this bot. The useful part is the discipline: knowing what you hold, what\'s about to move it, and when you\'re over-concentrated.',
   ].join('\n') },
+  { title: '🤖 Ask the bot anything', color: 0x57f287, description: [
+    'Confused by a card, a number, or a step? Ask in **#chat**: start your message with `?` or tag **@Ticketflip**.',
+    'It knows this playbook, today\'s picks, the Kalshi cards and the group ledger, and it answers like a friend who\'s done this before. Examples:',
+    '• `? what does quarter-Kelly mean on the Bitcoin card`',
+    '• `? how do I transfer a Ticketmaster ticket to a StubHub buyer`',
+    '• `@Ticketflip is the Interpol pick still a buy if the cheapest tier is $65?`',
+    'It won\'t place trades or buy tickets, and it will tell you when it doesn\'t know.',
+  ].join('\n') },
 ];
 
