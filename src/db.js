@@ -4,7 +4,7 @@ import { cfg } from './config.js';
 // DRY=1 → no database: every store call is a no-op (local runs, backtests, Discord previews).
 const DRY = !!process.env.DRY;
 const stub = Object.assign(async () => [], { json: (x) => x, end: async () => {}, unsafe: async () => [] });
-export const sql = DRY ? stub : postgres(cfg.dbUrl(), { ssl: process.env.PGSSL === 'off' ? false : 'prefer', max: 3, idle_timeout: 10 });
+export const sql = DRY ? stub : postgres(cfg.dbUrl(), { ssl: process.env.PGSSL === 'off' ? false : 'prefer', max: 3, idle_timeout: 10, onnotice: () => {} });
 
 export async function init() {
   if (DRY) return;

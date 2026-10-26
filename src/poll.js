@@ -10,11 +10,12 @@ import { embed, post } from './discord.js';
 import venues from '../data/venues.json' with { type: 'json' };
 
 const STALE_MS = 6 * 3600e3;
+const SIG_VERSION = 2; // bump when enrich() learns a new signal so cached rows re-enrich
 const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 async function enrich(f, prev) {
   const s = prev && Date.now() - new Date(prev.last_seen).getTime() < STALE_MS ? { ...prev.signals } : {};
-  if (s.enrichedAt && Date.now() - s.enrichedAt < STALE_MS) return s;
+  if (s.v === SIG_VERSION && s.enrichedAt && Date.now() - s.enrichedAt < STALE_MS) return s;
   const vn = norm(f.venue.name), vc = norm(f.venue.city);
   const local = venues.find(v => norm(v.name) === vn) || venues.find(v => norm(v.city) === vc && (norm(v.name).includes(vn) || vn.includes(norm(v.name))));
   const sgCap = local ? null : await sg.venueCapacity(f.venue.name, f.venue.city).catch(() => null);
@@ -32,7 +33,7 @@ async function enrich(f, prev) {
       s.sg = { performerScore: p.score, upcoming: p.upcoming, events: evs.length, listings: evs.length ? Math.round(evs.reduce((a, e) => a + e.listings, 0) / evs.length) : 0, low: evs.length ? Math.min(...evs.map(e => e.low)) : null, observedPremium: prem.length ? median(prem) : null };
     }
   } catch (e) { s.sgError = e.message; }
-  s.enrichedAt = Date.now();
+  s.enrichedAt = Date.now(); s.v = SIG_VERSION;
   return s;
 }
 // One line per act+venue: the digest shouldn't be nine rows of the same residency.
