@@ -1,7 +1,7 @@
 // Postgres store. Run `node src/db.js --init` once to create tables.
 import postgres from 'postgres';
 import { cfg } from './config.js';
-export const sql = postgres(cfg.dbUrl(), { ssl: 'require', max: 3, idle_timeout: 10 });
+export const sql = postgres(cfg.dbUrl(), { ssl: process.env.PGSSL === 'off' ? false : 'prefer', max: 3, idle_timeout: 10 });
 
 export async function init() {
   await sql`create table if not exists events (
