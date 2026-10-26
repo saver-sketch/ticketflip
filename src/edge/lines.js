@@ -43,9 +43,10 @@ export function linesEmbed(rows, league) {
   const lines = list.slice(0, 40).map(r => {
     const d = new Date(r.date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' });
     const verdict = r.gap == null ? '' : r.gap >= 0.04 ? ' 🟢 **edge**' : r.gap >= 0.025 ? ' 🟡 close' : '';
-    return `**${r.awayName} @ ${r.homeName}** · ${d}\n${r.away} **${pct(r.kalshiA)}** · ${r.home} **${pct(r.kalshiH)}**` + (r.polyA != null ? ` · Polymarket ${pct(r.polyA)}/${pct(r.polyH)}` : ' · no Polymarket line') + verdict;
+    const c = (p) => p == null ? '—' : `${Math.round(p * 100)}¢`;
+    return `**${r.awayName} @ ${r.homeName}** · ${d}\n${r.away} ${c(r.askA)} → **${pct(r.kalshiA)}** · ${r.home} ${c(r.askH)} → **${pct(r.kalshiH)}**` + verdict;
   });
-  return { title: `${league === 'NFL' ? '🏈 NFL' : '🏈 College football'} — Kalshi win odds (next 7 days)`, color: 0x5865f2, description: (lines.join('\n') || '_No games on Kalshi in the next 7 days._').slice(0, 4000), footer: { text: `% = Kalshi's two sides, vig removed. 🟢 = 4¢+ gap vs Polymarket, worth a look · 🟡 = 2.5–4¢ · updated` }, timestamp: new Date().toISOString() };
+  return { title: `${league === 'NFL' ? '🏈 NFL' : '🏈 College football'} — Kalshi win odds (next 7 days)`, color: 0x5865f2, description: (lines.join('\n') || '_No games on Kalshi in the next 7 days._').slice(0, 4000), footer: { text: `¢ = price to buy YES on Kalshi right now · % = win odds that price implies (both sides scaled to 100) · 🟢 = we see an edge, 🟡 = close · updated` }, timestamp: new Date().toISOString() };
 }
 // Post once, then edit the same message every run (bot token). Message ids live in kv.
 export async function upsertLinesBoard() {
