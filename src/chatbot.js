@@ -76,7 +76,11 @@ client.on('messageCreate', async (msg) => {
     text = (text || '').trim() || "I don't have a good answer for that one.";
     if (text.length > 1900) text = text.slice(0, 1890) + '…';
     await msg.reply({ content: text, allowedMentions: { repliedUser: true } });
-  } catch (e) { console.error('chat', e.message); try { await msg.reply('Something broke on my side. Ask again in a minute.'); } catch {} }
+  } catch (e) {
+    console.error('chat', e.message);
+    const friendly = /credit balance/i.test(e.message) ? '⛽ I\'m out of API credits, so I can\'t think right now. Saver needs to top up the Anthropic account.' : /rate.?limit|overloaded|529/i.test(e.message) ? 'I\'m rate-limited for a moment. Ask again in a minute.' : 'Something broke on my side. Ask again in a minute.';
+    try { await msg.reply(friendly); } catch {}
+  }
 });
 client.once('clientReady', () => console.log(`chatbot online as ${client.user.tag}; answering in channel ${CHAT || 'any'}`));
 client.login(process.env.DISCORD_BOT_TOKEN).catch((e) => {
