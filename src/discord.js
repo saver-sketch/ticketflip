@@ -62,3 +62,13 @@ export async function post({ content = '', embeds = [], url }) {
   return true;
 }
 export async function say(url, content) { if (!url || silent()) { console.log('[discord off]', content.slice(0, 80)); return false; } return send(url, { content }); }
+
+// Post as the bot (needs DISCORD_BOT_TOKEN and Send Messages in that channel). One message per embed.
+export async function postAsBot(channelId, { content = '', embeds = [] }) {
+  const tok = process.env.DISCORD_BOT_TOKEN;
+  if (!tok || !channelId || silent()) { console.log('[bot off]', content.slice(0, 60), embeds.map(e => e.title)); return false; }
+  const send = async (body) => { for (let i = 0; i < 4; i++) { const r = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, { method: 'POST', headers: { authorization: `Bot ${tok}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }); if (r.status === 429) { const j = await r.json().catch(() => ({})); await new Promise(res => setTimeout(res, (j.retry_after || 1) * 1000 + 250)); continue; } if (!r.ok) throw new Error(`discord bot ${r.status}: ${(await r.text()).slice(0, 160)}`); return; } };
+  if (content) { await send({ content }); await new Promise(r => setTimeout(r, 600)); }
+  for (const e of embeds) { await send({ embeds: [e] }); await new Promise(r => setTimeout(r, 600)); }
+  return true;
+}

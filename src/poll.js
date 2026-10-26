@@ -10,6 +10,7 @@ import { sql, init, upsertEvent, knownEvents, markPing, lastRun, logRun } from '
 import { card, alert, post, say } from './discord.js';
 import venues from '../data/venues.json' with { type: 'json' };
 import { ingest } from './ledger.js';
+import { kalshiEdge } from './kalshi-run.js';
 
 const STALE_MS = 6 * 3600e3;
 const SIG_VERSION = 3; // bump when enrich() learns a new signal so cached rows re-enrich
@@ -81,6 +82,7 @@ async function main() {
   }
   await logRun('poll', { events: scored.length, buy: scored.filter(x => x.sc.verdict === 'BUY').length });
   try { await ingest(); } catch (e) { console.error('ledger', e.message); }
+  try { await kalshiEdge(); } catch (e) { console.error('kalshi', e.message); }
 
   // Instant ping: a NEW event that scores BUY (so he can register for Verified Fan / card presales early).
   // Instant pings: new BUY-grade events only, never on a cold database, at most 5 per run.
