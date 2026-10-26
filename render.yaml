@@ -1,0 +1,19 @@
+services:
+  - type: cron
+    name: ticketflip-poller
+    runtime: node
+    plan: starter
+    schedule: "*/15 * * * *"
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: node src/poll.js
+    envVars:
+      - key: TM_API_KEY
+        sync: false
+      - key: SEATGEEK_CLIENT_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: BANKROLL
+        value: "1500"

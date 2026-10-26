@@ -1,0 +1,16 @@
+{
+  "name": "ticketflip",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "poll": "node src/poll.js",
+    "digest": "node src/poll.js --digest",
+    "backtest": "node src/backtest.js",
+    "db:init": "node src/db.js --init"
+  },
+  "dependencies": {
+    "postgres": "^3.4.5"
+  }
+}
