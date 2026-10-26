@@ -5,6 +5,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { cfg } from './config.js';
 import { sql } from './db.js';
 import { PLAYBOOK as BASE, EXTRA } from './playbook-data.js';
+import { footballLines } from './edge/lines.js';
+import { markets } from './kalshi.js';
 const PLAYBOOK = [...BASE, ...EXTRA];
 
 // Message Content is a privileged intent (toggle in the dev portal → Bot). Without it the bot still sees @mentions.
@@ -13,11 +15,28 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 const anthropic = new Anthropic();
 const CHAT = process.env.DISCORD_CHAT_CHANNEL_ID;
 
+// Live Kalshi snapshot, refreshed every 10 minutes: every football game with both sides' win %, plus the BTC/ETH ladders.
+let snap = { at: 0, text: '' };
+async function kalshiSnapshot() {
+  if (Date.now() - snap.at < 10 * 60e3) return snap.text;
+  try {
+    const rows = await footballLines();
+    const pct = (p) => `${Math.round(p * 100)}%`;
+    const games = rows.map(r => `- ${r.league} ${r.date}: ${r.awayName} (${r.away}) ${pct(r.kalshiA)} @ ${r.homeName} (${r.home}) ${pct(r.kalshiH)}${r.gap != null && r.gap >= 0.04 ? ' [bot sees an edge]' : ''}`);
+    const ladders = [];
+    for (const s of ['KXBTCD', 'KXETHD']) { const ms = (await markets(s)).filter(m => m.yesAsk != null).sort((a, b) => (a.strike || 0) - (b.strike || 0)); if (ms.length) ladders.push(`- ${s} (${ms[0].title}): ` + ms.map(m => `${m.yesSub} YES ${Math.round(m.yesAsk * 100)}¢`).join(', ')); }
+    snap = { at: Date.now(), text: ['## Kalshi football win odds right now (vig removed; these are the numbers on the #kalshi-sports board)', ...games, '## Kalshi crypto ladders right now (YES ask)', ...ladders].join('\n') };
+  } catch (e) { console.error('snapshot', e.message); }
+  return snap.text;
+}
 async function context() {
+  const kalshi = await kalshiSnapshot();
   const picks = await sql`select name, venue, score, verdict, first_presale, onsale from events where verdict in ('BUY','WATCH') order by (score->>'roi')::numeric desc limit 12`.catch(() => []);
   const alerts = await sql`select ticker, side, kind, fair, price, edge, stake, at from kalshi_alerts where at > now() - interval '24 hours' order by edge desc limit 12`.catch(() => []);
+  kalshiSnapshot().catch(() => {});
   const ledger = await sql`select who, action, qty, unit_cost, sale_price, marketplace, note, at from picks where who is not null order by at desc limit 20`.catch(() => []);
   return [
+    kalshi,
     '## Current ticket picks (top by projected ROI)',
     ...picks.map(p => `- ${p.verdict} ${p.name} @ ${p.venue?.name}, ${p.venue?.city}: face $${p.score?.face}${p.score?.faceEst ? ' (est.)' : ''}, sell ~$${p.score?.sell}, net ~$${p.score?.net}/ticket, ROI ${Math.round((p.score?.roi || 0) * 100)}%, ${p.score?.label}; first presale ${p.first_presale || 'n/a'}, onsale ${p.onsale}`),
     '## Kalshi edge alerts (last 24h)',
@@ -26,7 +45,7 @@ async function context() {
     ...ledger.map(l => `- ${l.who} ${l.action} ${l.qty} × ${l.note} @ $${l.unit_cost ?? l.sale_price}${l.marketplace ? ' on ' + l.marketplace : ''} (${new Date(l.at).toISOString().slice(0, 10)})`),
   ].join('\n');
 }
-const SYSTEM = `You are Ticketflip, the helper bot in a small private Discord where friends flip concert tickets and trade Kalshi contracts. Answer questions plainly, like a sharp friend who knows the playbook, in 2–6 short sentences unless a step-by-step is asked for. Use Discord markdown sparingly (bold for numbers that matter). Never invent prices or picks: if the answer needs live data you don't have, say what to check and where. Hard rules you always uphold: one Ticketmaster account per person within the posted limit, nobody shares accounts or cards, never list a ticket you don't hold, Kalshi cards are alerts not orders, stocks posts are information not advice. If someone asks "should I buy X", walk them through the card's numbers and risks and let them decide; don't cheerlead.
+const SYSTEM = `You are Ticketflip, the helper bot in a small private Discord where friends flip concert tickets and trade Kalshi contracts. Answer questions plainly, like a sharp friend who knows the playbook, in 2–6 short sentences unless a step-by-step is asked for. Use Discord markdown sparingly (bold for numbers that matter). Never invent prices or picks: if the answer needs live data you don't have, say what to check and where. When someone asks who wins a game or what the odds are, answer straight from the Kalshi numbers in your context (e.g. "Kalshi has the Cowboys at 67%, Eagles 33%") and say whether the bot sees an edge on it; never send them to another site for the number. Channel names: #kalshi-sports (football board + sports edge cards), #kalshi-crypto (Bitcoin/Ethereum cards), #presales, #alerts, #buys, #sold, #chat, #start-here. Don't mention Polymarket by name to members; call it "our reference price" if it comes up. Hard rules you always uphold: one Ticketmaster account per person within the posted limit, nobody shares accounts or cards, never list a ticket you don't hold, Kalshi cards are alerts not orders, stocks posts are information not advice. If someone asks "should I buy X", walk them through the card's numbers and risks and let them decide; don't cheerlead.
 
 # The playbook (what members were told)
 ${PLAYBOOK.map(p => `## ${p.title}\n${p.description}`).join('\n\n')}`;
