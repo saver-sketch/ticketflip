@@ -2,6 +2,7 @@
 // Posted once as a bot message in #kalshi and edited in place every run, so the channel doesn't fill up.
 import { markets } from '../kalshi.js';
 import { sql } from '../db.js';
+import { bookFair } from '../research.js';
 
 const SERIES = { KXNFLGAME: 'NFL', KXNCAAFGAME: 'CFB' };
 const MONTHS = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
@@ -30,10 +31,10 @@ export async function footballLines({ days = 8 } = {}) {
       const a = side(g.away), h = side(g.home); if (!a || !h) continue;
       const pa = mid(a), ph = mid(h); if (pa == null || ph == null) continue;
       const s = pa + ph; const fa = pa / s, fh = ph / s; // devig the two Kalshi sides
-      let pm = null; try { pm = await poly(league === 'NFL' ? 'nfl' : 'cfb', g); } catch {}
-      const polyA = pm?.byCode[g.away], polyH = pm?.byCode[g.home];
-      const gap = polyA != null ? Math.max(Math.abs(polyA - fa), Math.abs(polyH - fh)) : null;
-      rows.push({ league, date: g.date, away: g.away, home: g.home, awayName: a.yesSub, homeName: h.yesSub, kalshiA: fa, kalshiH: fh, askA: a.yesAsk, askH: h.yesAsk, polyA, polyH, gap, liq: pm?.liq || 0, vol: (a.volume || 0) + (h.volume || 0) });
+      let book = null; try { book = await bookFair(league === 'NFL' ? 'nfl' : 'cfb', g.date, g.away, g.home); } catch {}
+      if (book?.status && book.status !== 'pre') continue; // already kicked off
+      const gap = book ? Math.max(Math.abs(book.away - fa), Math.abs(book.home - fh)) : null;
+      rows.push({ league, date: g.date, away: g.away, home: g.home, awayName: a.yesSub, homeName: h.yesSub, kalshiA: fa, kalshiH: fh, askA: a.yesAsk, askH: h.yesAsk, bookA: book?.away ?? null, bookH: book?.home ?? null, gap, vol: (a.volume || 0) + (h.volume || 0) });
     }
   }
   return rows.sort((x, y) => x.date.localeCompare(y.date) || y.vol - x.vol);

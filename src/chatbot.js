@@ -7,6 +7,7 @@ import { sql } from './db.js';
 import { PLAYBOOK as BASE, EXTRA } from './playbook-data.js';
 import { footballLines } from './edge/lines.js';
 import { markets } from './kalshi.js';
+import { analyze } from './analyst.js';
 const PLAYBOOK = [...BASE, ...EXTRA];
 
 // Message Content is a privileged intent (toggle in the dev portal → Bot). Without it the bot still sees @mentions.
@@ -62,11 +63,17 @@ client.on('messageCreate', async (msg) => {
     const question = (msg.content || '').replace(/<@!?\d+>/g, '').replace(/^\?\s*/, '').trim();
     if (!question) return;
     await msg.channel.sendTyping();
+    const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
     const history = await msg.channel.messages.fetch({ limit: 12 });
-    const prior = [...history.values()].filter(m => m.id !== msg.id && m.content).reverse().slice(-10).map(m => ({ role: m.author.id === client.user.id ? 'assistant' : 'user', content: `${m.author.id === client.user.id ? '' : m.author.displayName + ': '}${m.content.replace(/<@!?\d+>/g, '').slice(0, 800)}` }));
+    // Collapse prior turns into alternating user/assistant text (merge same-role neighbours).
+    const raw = [...history.values()].filter(m => m.id !== msg.id && m.content).reverse().slice(-10).map(m => ({ role: m.author.id === client.user.id ? 'assistant' : 'user', content: `${m.author.id === client.user.id ? '' : m.author.displayName + ': '}${m.content.replace(/<@!?\d+>/g, '').slice(0, 800)}` }));
+    const prior = []; for (const t of raw) { const last = prior[prior.length - 1]; if (last && last.role === t.role) last.content += '\n' + t.content; else prior.push({ ...t }); }
+    if (prior.length && prior[0].role === 'assistant') prior.shift();
+    if (prior.length && prior[prior.length - 1].role === 'user') { prior[prior.length - 1].content += ''; }
     const ctx = await context();
-    const r = await anthropic.messages.create({ model: 'claude-opus-5-5', max_tokens: 700, output_config: { effort: 'medium' }, system: `${SYSTEM}\n\n# Live state right now\n${ctx}`, messages: [...prior, { role: 'user', content: `${msg.author.displayName}: ${question}` }] });
-    let text = r.content.filter(b => b.type === 'text').map(b => b.text).join('').trim() || "I don't have a good answer for that one.";
+    let text;
+    try { text = await analyze({ question: `${msg.author.displayName}: ${question}`, history: prior.length && prior[prior.length - 1].role === 'user' ? prior.slice(0, -1) : prior, extraSystem: `${SYSTEM}\n\n# Live state right now\n${ctx}`, log: (l) => console.log('analyst', l) }); } finally { clearInterval(typing); }
+    text = (text || '').trim() || "I don't have a good answer for that one.";
     if (text.length > 1900) text = text.slice(0, 1890) + '…';
     await msg.reply({ content: text, allowedMentions: { repliedUser: true } });
   } catch (e) { console.error('chat', e.message); try { await msg.reply('Something broke on my side. Ask again in a minute.'); } catch {} }
