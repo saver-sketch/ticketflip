@@ -19,21 +19,21 @@ export function embed(ev, sc, { title } = {}) {
     sc.flags.length ? `⚠️ ${sc.flags.join(' · ')}` : '',
     sc.notes.length ? `_${sc.notes.join(' · ')}_` : '',
   ].filter(l => l !== undefined);
-  return { title: title || `${sc.verdict} · ${ev.name}`, url: ev.url, color: COLOR[sc.verdict] || COLOR.SKIP, description: lines.join('\n').slice(0, 4000) };
+  return { title: title || `${sc.verdict} · ${ev.name}`, url: ev.url, color: COLOR[sc.verdict] || COLOR.SKIP, description: lines.join('\n').slice(0, 900) };
 }
 
 export async function post({ content = '', embeds = [] }) {
   const url = cfg.discordWebhook();
   if (!url || (process.env.DRY && !process.env.POST)) { console.log('[discord off]', content, embeds.map(e => e.title)); return false; }
-  for (let i = 0; i < embeds.length || i === 0; i += 10) {
+  for (let i = 0; i < embeds.length || i === 0; i += 5) {
     for (let attempt = 0; attempt < 4; attempt++) {
-      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: i === 0 ? content : '', embeds: embeds.slice(i, i + 10), username: 'Ticketflip' }) });
+      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: i === 0 ? content : '', embeds: embeds.slice(i, i + 5), username: 'Ticketflip' }) });
       if (r.status === 429) { const j = await r.json().catch(() => ({})); await new Promise(res => setTimeout(res, Math.ceil((j.retry_after || 1) * 1000) + 250)); continue; }
       if (!r.ok) throw new Error(`discord ${r.status}: ${(await r.text()).slice(0, 200)}`);
       break;
     }
     await new Promise(res => setTimeout(res, 600)); // stay under the webhook's 30/min
-    if (embeds.length <= 10) break;
+    if (embeds.length <= 5) break;
   }
   return true;
 }
