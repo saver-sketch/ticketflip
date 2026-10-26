@@ -17,3 +17,16 @@ export async function instagramFollowers(url) {
   const m = html?.match(/([\d.,]+\s*[KMB]?)\s*Followers/i);
   return num(m?.[1]);
 }
+
+// Deezer public API (no key): fan count per artist. Exact-name match only, so "Role Model" never becomes "Rolemodel".
+export async function deezerFans(name) {
+  if (!name) return null;
+  try {
+    const r = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(name)}&limit=5`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const n = (x) => (x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const hit = (j.data || []).find(a => n(a.name) === n(name));
+    return hit ? { fans: hit.nb_fan, id: hit.id } : null;
+  } catch { return null; }
+}

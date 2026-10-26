@@ -14,7 +14,7 @@ export function score(f, s) {
   if (face == null) { face = estimateFace(s.capacity, f.segment, f.genre); faceEst = true; }
 
   const cap = s.capacity || null;
-  const listeners = s.spotify || null;
+  const fans = s.fans ?? null;
   const comedy = /comedy/i.test(f.genre) || /comedy/i.test(f.subgenre) || /comedy/i.test(f.attraction.genre);
   const theatre = f.segment === 'Arts & Theatre' && !comedy;
 
@@ -26,14 +26,17 @@ export function score(f, s) {
     if (cap && cap <= 5000) { premium = 1.6; conf = 0.5; notes.push(`small venue ${cap}`); }
     else if (cap && cap <= 20000) { premium = 1.25; conf = 0.45; notes.push(`arena ${cap}`); }
     else if (cap) { premium = 0.95; conf = 0.5; notes.push(`stadium/amphi ${cap} (oversupply risk)`); }
-    if (listeners) {
-      if (listeners >= 5e5 && listeners <= 5e6) { premium += 0.2; conf += 0.15; notes.push(`${fmt(listeners)} monthly listeners (sweet spot)`); }
-      else if (listeners > 5e6 && listeners <= 2e7) { premium += 0.1; conf += 0.1; notes.push(`${fmt(listeners)} listeners`); }
-      else if (listeners > 2e7) { if (cap && cap > 20000) premium -= 0.1; notes.push(`${fmt(listeners)} listeners (household name)`); conf += 0.1; }
-      else { premium -= 0.2; conf += 0.1; notes.push(`${fmt(listeners)} listeners (thin fanbase)`); }
-    }
+    // Fanbase (Deezer fans; roughly 1/10–1/20 of Spotify monthly listeners).
+    if (fans != null) {
+      if (fans >= 3e4 && fans <= 5e5) { premium += 0.2; conf += 0.15; notes.push(`${fmt(fans)} fans (sweet spot)`); }
+      else if (fans > 5e5 && fans <= 3e6) { premium += 0.1; conf += 0.1; notes.push(`${fmt(fans)} fans (big)`); }
+      else if (fans > 3e6) { if (cap && cap > 20000) premium -= 0.1; conf += 0.1; notes.push(`${fmt(fans)} fans (household name)`); }
+      else if (fans >= 3e3) { premium -= 0.1; conf += 0.1; notes.push(`${fmt(fans)} fans (mid)`); }
+      else { premium -= 0.3; conf += 0.1; notes.push(`${fmt(fans)} fans (thin)`); }
+    } else { premium -= 0.2; notes.push('no fanbase data'); }
     if (LEGACY_RX.test(f.name)) { premium -= 0.15; notes.push('legacy/anniversary tour'); }
   }
+  if ((s.sameVenueDates || 1) >= 4) { premium -= 0.2; notes.push(`${s.sameVenueDates} dates at this venue (residency, supply)`); }
   if (f.attraction.upcoming != null && f.attraction.upcoming > 60) { premium -= 0.1; notes.push(`${f.attraction.upcoming} upcoming dates (heavy supply)`); }
   if (f.attraction.upcoming != null && f.attraction.upcoming <= 12 && f.attraction.upcoming > 0) { premium += 0.1; notes.push(`${f.attraction.upcoming} dates only (scarce)`); }
 
@@ -60,7 +63,7 @@ export function score(f, s) {
   const sellAt = flags.some(x => x.startsWith('face-value')) ? 'Ticketmaster Face Value Exchange only (no margin)'
     : premium >= 1.5 ? 'StubHub (biggest buyer pool) + TickPick; list within 48h, hold price'
     : 'StubHub via Lysted; reprice weekly, undercut floor 5% in the last 10 days';
-  return { premium: r2(premium), confidence: r2(conf), face: r2(face), faceEst, cost: r2(cost), sell: r2(sell), net: r2(net), roi: r2(roi), qty, verdict, flags, notes, sellAt };
+  return { premium: r2(premium), confidence: r2(conf), face: r2(face), faceEst, fans, cost: r2(cost), sell: r2(sell), net: r2(net), roi: r2(roi), qty, verdict, flags, notes, sellAt };
 }
 // Typical cheapest-tier face price by venue size (US, 2026).
 function estimateFace(cap, segment, genre) {

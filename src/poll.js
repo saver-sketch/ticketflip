@@ -3,7 +3,7 @@
 import { cfg } from './config.js';
 import { upcomingOnsales, flatten } from './tm.js';
 import * as sg from './seatgeek.js';
-import { spotifyMonthlyListeners, instagramFollowers } from './signals.js';
+import { spotifyMonthlyListeners, instagramFollowers, deezerFans } from './signals.js';
 import { score } from './score.js';
 import { sql, init, upsertEvent, knownEvents, markPing, lastRun, logRun } from './db.js';
 import { embed, post } from './discord.js';
@@ -15,12 +15,13 @@ const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 async function enrich(f, prev) {
   const s = prev && Date.now() - new Date(prev.last_seen).getTime() < STALE_MS ? { ...prev.signals } : {};
   if (s.enrichedAt && Date.now() - s.enrichedAt < STALE_MS) return s;
-  const local = venues.find(v => norm(v.name) === norm(f.venue.name) || (norm(v.name).includes(norm(f.venue.name)) && norm(v.city) === norm(f.venue.city)));
+  const vn = norm(f.venue.name), vc = norm(f.venue.city);
+  const local = venues.find(v => norm(v.name) === vn) || venues.find(v => norm(v.city) === vc && (norm(v.name).includes(vn) || vn.includes(norm(v.name))));
   const sgCap = local ? null : await sg.venueCapacity(f.venue.name, f.venue.city).catch(() => null);
   s.capacity = local?.capacity || sgCap || s.capacity || guessCapacity(f.venue.name);
   s.capacitySource = local ? 'table' : sgCap ? 'seatgeek' : 'guess';
-  s.spotify = (await spotifyMonthlyListeners(f.attraction.spotify)) ?? s.spotify ?? null;
-  s.instagram = (await instagramFollowers(f.attraction.instagram)) ?? s.instagram ?? null;
+  const dz = await deezerFans(f.attraction.name);
+  s.fans = dz?.fans ?? s.fans ?? null; s.fansSource = dz ? 'deezer' : s.fansSource || null;
   // Secondary-market reality check on the same act's already-on-sale dates.
   try {
     const p = f.attraction.name ? await sg.performer(f.attraction.name) : null;
@@ -34,6 +35,8 @@ async function enrich(f, prev) {
   s.enrichedAt = Date.now();
   return s;
 }
+// One line per act+venue: the digest shouldn't be nine rows of the same residency.
+function dedupe(list) { const seen = new Set(); return list.filter(({ f }) => { const k = `${f.attraction.id}|${f.venue.id}`; if (seen.has(k)) return false; seen.add(k); return true; }); }
 // Rough capacity from the venue's name when it's not in the table and SeatGeek is off.
 function guessCapacity(name = '') {
   const n = name.toLowerCase();
@@ -58,12 +61,15 @@ async function main() {
   const raw = await upcomingOnsales();
   const flats = raw.map(flatten);
   const known = await knownEvents(flats.map(f => f.id));
+  const runCount = {};
+  for (const f of flats) { const k = `${f.attraction.id}|${f.venue.id}`; runCount[k] = (runCount[k] || 0) + 1; }
   const scored = [];
-  const sigStats = { table: 0, seatgeek: 0, guess: 0, spotify: 0, instagram: 0 };
+  const sigStats = { table: 0, seatgeek: 0, guess: 0, fans: 0 };
   for (const f of flats) {
     const prev = known.get(f.id);
     const signals = await enrich(f, prev);
-    sigStats[signals.capacitySource] = (sigStats[signals.capacitySource] || 0) + 1; if (signals.spotify) sigStats.spotify++; if (signals.instagram) sigStats.instagram++;
+    signals.sameVenueDates = runCount[`${f.attraction.id}|${f.venue.id}`] || 1;
+    sigStats[signals.capacitySource] = (sigStats[signals.capacitySource] || 0) + 1; if (signals.fans != null) sigStats.fans++;
     const sc = score(f, signals);
     await upsertEvent(f, signals, sc);
     scored.push({ f, sc, prev });
@@ -90,14 +96,14 @@ async function main() {
   const forced = process.argv.includes('--digest');
   const last = await lastRun('digest');
   if (forced || (localHour() >= cfg.digestHourLocal && (!last || localDay(last) !== localDay()))) {
-    const week = scored.filter(x => x.sc.verdict !== 'SKIP').sort((a, b) => b.sc.roi - a.sc.roi).slice(0, 10);
+    const week = dedupe(scored.filter(x => x.sc.verdict !== 'SKIP').sort((a, b) => b.sc.roi - a.sc.roi)).slice(0, 10);
     const skipped = scored.length - week.length;
     await post({ content: `☀️ **Ticketflip digest ${localDay()}** — ${scored.length} onsales in the next ${cfg.horizonDays} days, ${week.length} worth a look, ${skipped} skipped. Bankroll $${cfg.bankroll}.`, embeds: week.map(x => embed(x.f, x.sc)) });
     await logRun('digest', { shown: week.length });
   }
   if (process.env.DRY) {
-    const top = scored.filter(x => x.sc.verdict !== 'SKIP').sort((a, b) => b.sc.roi - a.sc.roi).slice(0, 25);
-    console.table(top.map(({ f, sc }) => ({ verdict: sc.verdict, event: f.name.slice(0, 34), venue: `${f.venue.name || ''}`.slice(0, 22), cap: scoredCap(f, sc), face: sc.face + (sc.faceEst ? '~' : ''), sell: sc.sell, roi: sc.roi, conf: sc.confidence, first: (f.presales[0]?.start || f.onsale || '').slice(0, 16), flags: sc.flags.join(';').slice(0, 30) })));
+    const top = dedupe(scored.filter(x => x.sc.verdict !== 'SKIP').sort((a, b) => b.sc.roi - a.sc.roi)).slice(0, 25);
+    console.table(top.map(({ f, sc }) => ({ verdict: sc.verdict, event: f.name.slice(0, 34), venue: `${f.venue.name || ''}`.slice(0, 22), cap: scoredCap(f, sc), fans: f.attraction.name ? (x => x == null ? '?' : x >= 1e6 ? (x / 1e6).toFixed(1) + 'M' : x >= 1e3 ? Math.round(x / 1e3) + 'K' : String(x))(sc.fans) : '-', face: sc.face + (sc.faceEst ? '~' : ''), sell: sc.sell, roi: sc.roi, conf: sc.confidence, first: (f.presales[0]?.start || f.onsale || '').slice(0, 16), flags: sc.flags.join(';').slice(0, 30) })));
     const have = (k) => scored.filter(x => x.prev?.signals?.[k] ?? x.sc[k] ?? null).length;
     const sigs = { capacityTable: 0, capacitySG: 0, capacityGuess: 0, spotify: 0, instagram: 0, faceKnown: 0 };
     for (const { f, sc } of scored) { if (f.faceMin != null) sigs.faceKnown++; }
