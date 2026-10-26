@@ -1,9 +1,13 @@
 // Postgres store. Run `node src/db.js --init` once to create tables.
 import postgres from 'postgres';
 import { cfg } from './config.js';
-export const sql = postgres(cfg.dbUrl(), { ssl: process.env.PGSSL === 'off' ? false : 'prefer', max: 3, idle_timeout: 10 });
+// DRY=1 → no database: every store call is a no-op (local runs, backtests, Discord previews).
+const DRY = !!process.env.DRY;
+const stub = Object.assign(async () => [], { json: (x) => x, end: async () => {}, unsafe: async () => [] });
+export const sql = DRY ? stub : postgres(cfg.dbUrl(), { ssl: process.env.PGSSL === 'off' ? false : 'prefer', max: 3, idle_timeout: 10 });
 
 export async function init() {
+  if (DRY) return;
   await sql`create table if not exists events (
     id text primary key, name text, url text, segment text, genre text, subgenre text,
     event_date timestamptz, onsale timestamptz, first_presale timestamptz, presales jsonb,
@@ -26,6 +30,7 @@ export async function init() {
 }
 
 export async function upsertEvent(f, signals, score) {
+  if (DRY) return;
   const firstPresale = f.presales.map(p => p.start).filter(Boolean).sort()[0] || null;
   const row = {
     id: f.id, name: f.name, url: f.url, segment: f.segment, genre: f.genre, subgenre: f.subgenre,
@@ -38,12 +43,15 @@ export async function upsertEvent(f, signals, score) {
   await sql`insert into snapshots ${sql({ event_id: f.id, face_min: f.faceMin, face_max: f.faceMax, status: f.status, sg: sql.json(signals.sg || null) })}`;
 }
 export async function knownEvents(ids) {
-  if (!ids.length) return new Map();
+  if (DRY || !ids.length) return new Map();
   const rows = await sql`select id, signals, score, last_seen from events where id in ${sql(ids)}`;
   return new Map(rows.map(r => [r.id, r]));
 }
-export async function markPing(id, col) { await sql`update events set ${sql({ [col]: true })} where id = ${id}`; }
-export async function lastRun(kind) { const [r] = await sql`select at from runs where kind = ${kind} order by at desc limit 1`; return r?.at || null; }
-export async function logRun(kind, info) { await sql`insert into runs ${sql({ kind, info: sql.json(info) })}`; }
+export async function markPing(id, col) {
+  if (DRY) return; await sql`update events set ${sql({ [col]: true })} where id = ${id}`; }
+export async function lastRun(kind) {
+  if (DRY) return null; const [r] = await sql`select at from runs where kind = ${kind} order by at desc limit 1`; return r?.at || null; }
+export async function logRun(kind, info) {
+  if (DRY) return; await sql`insert into runs ${sql({ kind, info: sql.json(info) })}`; }
 
 if (process.argv.includes('--init')) { await init(); console.log('db ready'); await sql.end(); }

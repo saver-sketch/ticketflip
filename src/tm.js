@@ -20,21 +20,25 @@ export async function tmGet(path, params = {}) {
 
 const iso = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-// Every US music + comedy event whose public onsale starts inside the horizon.
-// Presale-only windows are caught because presales precede the public onsale.
+// Every US music / arts event whose public onsale falls inside the horizon (queried one day at a time:
+// the API's onsaleStartDateTime filter floods the first pages with TBD 1900-01-01 placeholders).
+// Presales precede the public onsale, so presale-only windows are caught too.
 export async function upcomingOnsales({ days = cfg.horizonDays, segments = ['Music', 'Arts & Theatre'] } = {}) {
   const now = new Date();
   const end = new Date(now.getTime() + days * 864e5);
   const out = new Map();
-  for (const seg of segments) {
-    for (let page = 0; page < 5; page++) { // deep-paging cap: size*page < 1000
-      const j = await tmGet('/events.json', {
-        countryCode: 'US', classificationName: seg, sort: 'onSaleStartDate,asc', size: 200, page,
-        onsaleStartDateTime: iso(now), onsaleEndDateTime: iso(end),
-      });
-      const evs = j._embedded?.events || [];
-      for (const e of evs) out.set(e.id, e);
-      if (page + 1 >= (j.page?.totalPages || 0) || evs.length < 200) break;
+  for (let d = 0; d <= days; d++) {
+    const day = new Date(now.getTime() + d * 864e5).toISOString().slice(0, 10);
+    for (const seg of segments) {
+      for (let page = 0; page < 5; page++) {
+        const j = await tmGet('/events.json', { countryCode: 'US', classificationName: seg, size: 200, page, onsaleOnStartDate: day, sort: 'onSaleStartDate,asc' });
+        const evs = j._embedded?.events || [];
+        for (const e of evs) {
+          const starts = [e.sales?.public?.startDateTime, ...(e.sales?.presales || []).map(p => p.startDateTime)].filter(Boolean).map(x => new Date(x).getTime());
+          if (starts.some(t => t >= now.getTime() - 3600e3 && t <= end.getTime())) out.set(e.id, e);
+        }
+        if (page + 1 >= (j.page?.totalPages || 0) || evs.length < 200) break;
+      }
     }
   }
   return [...out.values()];

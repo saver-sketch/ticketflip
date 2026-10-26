@@ -9,7 +9,9 @@ export function score(f, s) {
   const flags = [];
   if (SKIP_RX.test(f.note)) flags.push('face-value-only / non-transferable');
   if (f.status && f.status !== 'onsale' && f.status !== 'offsale') flags.push(`status ${f.status}`);
-  if (f.faceMin == null) flags.push('no face price yet');
+  // Face price is often unpublished before the onsale: estimate from venue tier + segment and lower confidence.
+  let face = f.faceMin, faceEst = false;
+  if (face == null) { face = estimateFace(s.capacity, f.segment, f.genre); faceEst = true; }
 
   const cap = s.capacity || null;
   const listeners = s.spotify || null;
@@ -42,9 +44,10 @@ export function score(f, s) {
     notes.push(`SeatGeek: other dates resell at ${obs.toFixed(2)}× face (${s.sg.events} dates, avg ${s.sg.listings} listings)`);
   }
   premium = Math.max(0.5, Math.min(3.5, premium));
+  if (faceEst) { conf -= 0.15; notes.push(`face est. $${face}`); }
+  if (s.capacitySource === 'guess') { conf -= 0.1; }
   conf = Math.max(0.1, Math.min(0.95, conf));
 
-  const face = f.faceMin ?? 0;
   const cost = face * (1 + cfg.buyerFee);               // cash out per ticket
   const sell = face * premium;                             // what a buyer pays for the cheapest tier
   const net = sell * (1 - cfg.sellerFee) - cost;           // per-ticket profit after marketplace cut
@@ -57,7 +60,13 @@ export function score(f, s) {
   const sellAt = flags.some(x => x.startsWith('face-value')) ? 'Ticketmaster Face Value Exchange only (no margin)'
     : premium >= 1.5 ? 'StubHub (biggest buyer pool) + TickPick; list within 48h, hold price'
     : 'StubHub via Lysted; reprice weekly, undercut floor 5% in the last 10 days';
-  return { premium: r2(premium), confidence: r2(conf), cost: r2(cost), sell: r2(sell), net: r2(net), roi: r2(roi), qty, verdict, flags, notes, sellAt };
+  return { premium: r2(premium), confidence: r2(conf), face: r2(face), faceEst, cost: r2(cost), sell: r2(sell), net: r2(net), roi: r2(roi), qty, verdict, flags, notes, sellAt };
+}
+// Typical cheapest-tier face price by venue size (US, 2026).
+function estimateFace(cap, segment, genre) {
+  if (segment === 'Arts & Theatre') return cap && cap > 3000 ? 65 : 45;
+  if (!cap) return 40;
+  if (cap <= 800) return 25; if (cap <= 2500) return 35; if (cap <= 6000) return 50; if (cap <= 20000) return 70; return 95;
 }
 const r2 = (n) => Math.round(n * 100) / 100;
 const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n);
