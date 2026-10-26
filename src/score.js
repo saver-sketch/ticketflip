@@ -40,12 +40,18 @@ export function score(f, s) {
   if (f.attraction.upcoming != null && f.attraction.upcoming > 60) { premium -= 0.1; notes.push(`${f.attraction.upcoming} upcoming dates (heavy supply)`); }
   if (f.attraction.upcoming != null && f.attraction.upcoming <= 12 && f.attraction.upcoming > 0) { premium += 0.1; notes.push(`${f.attraction.upcoming} dates only (scarce)`); }
 
-  // Observed secondary market for the same act's already-on-sale dates beats any tier guess.
-  const obs = s.sg?.observedPremium;
-  if (obs && obs > 0.3 && obs < 6) {
-    premium = premium * 0.4 + obs * 0.6; conf = Math.min(0.9, conf + 0.25);
-    notes.push(`SeatGeek: other dates resell at ${obs.toFixed(2)}× face (${s.sg.events} dates, avg ${s.sg.listings} listings)`);
-  }
+  // Observed secondary market (Gametime listings on the same act's on-sale dates) beats any tier guess.
+  const obs = s.resale?.p25 && face ? s.resale.p25 / face : null;
+  let observed = null, listings = null;
+  if (obs && obs > 0.3 && obs < 8) {
+    observed = r2(obs); listings = s.resale.listings;
+    const thin = (s.resale.listings || 0) < 5;
+    premium = premium * (thin ? 0.6 : 0.35) + obs * (thin ? 0.4 : 0.65); conf = Math.min(0.9, conf + (thin ? 0.1 : 0.3));
+    if (thin) notes.push('thin resale sample');
+    notes.push(`resale now: cheap-quarter $${s.resale.p25} = ${obs.toFixed(2)}× face (floor $${s.resale.floor}, median $${s.resale.median}), ~${s.resale.listings} listings/date over ${s.resale.sampled} dates`);
+    if (s.resale.listings > 150) { premium -= 0.15; notes.push('heavy resale supply'); }
+  } else if (s.resale && s.resale.events && !s.resale.median) { notes.push(`on Gametime (${s.resale.events} dates) but no listings yet`); }
+  else if (s.resale === null) { notes.push('not on Gametime'); }
   premium = Math.max(0.5, Math.min(3.5, premium));
   if (faceEst) { conf -= 0.15; notes.push(`face est. $${face}`); }
   if (s.capacitySource === 'guess') { conf -= 0.1; }
@@ -60,10 +66,13 @@ export function score(f, s) {
 
   let verdict = 'SKIP';
   if (!flags.length && face > 0) verdict = roi >= cfg.buyRoi && conf >= 0.4 ? 'BUY' : roi >= cfg.watchRoi ? 'WATCH' : 'SKIP';
+  // Face price unpublished: resale evidence can't be trusted against a guessed face. Hold at WATCH and say what face makes it a BUY.
+  let buyIfFace = null;
+  if (faceEst && verdict === 'BUY') { verdict = 'WATCH'; buyIfFace = Math.floor(sell * (1 - cfg.sellerFee) / ((1 + cfg.buyerFee) * (1 + cfg.buyRoi))); notes.push(`face not published yet — BUY if the cheapest tier is ≤ $${buyIfFace}`); }
   const sellAt = flags.some(x => x.startsWith('face-value')) ? 'Ticketmaster Face Value Exchange only (no margin)'
     : premium >= 1.5 ? 'StubHub (biggest buyer pool) + TickPick; list within 48h, hold price'
     : 'StubHub via Lysted; reprice weekly, undercut floor 5% in the last 10 days';
-  return { premium: r2(premium), confidence: r2(conf), face: r2(face), faceEst, fans, cost: r2(cost), sell: r2(sell), net: r2(net), roi: r2(roi), qty, verdict, flags, notes, sellAt };
+  return { premium: r2(premium), confidence: r2(conf), face: r2(face), faceEst, buyIfFace, fans, observed, listings, cost: r2(cost), sell: r2(sell), net: r2(net), roi: r2(roi), qty, verdict, flags, notes, sellAt };
 }
 // Typical cheapest-tier face price by venue size (US, 2026).
 function estimateFace(cap, segment, genre) {

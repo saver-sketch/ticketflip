@@ -15,7 +15,7 @@ export function embed(ev, sc, { title } = {}) {
     `• **Public onsale** ${when(ev.onsale)}`,
     '',
     `**Cost/ticket ${money(sc.cost)} → sell ${money(sc.sell)} → net ${money(sc.net)} (ROI ${pct(sc.roi)})** · confidence ${pct(sc.confidence)}`,
-    `Buy ${sc.qty} · ${sc.sellAt}`,
+    `Buy ${sc.qty} · ${sc.sellAt}` + (sc.moreDates ? ` · **+${sc.moreDates} more date${sc.moreDates > 1 ? 's' : ''} this tour**` : ''),
     sc.flags.length ? `⚠️ ${sc.flags.join(' · ')}` : '',
     sc.notes.length ? `_${sc.notes.join(' · ')}_` : '',
   ].filter(l => l !== undefined);
@@ -24,10 +24,15 @@ export function embed(ev, sc, { title } = {}) {
 
 export async function post({ content = '', embeds = [] }) {
   const url = cfg.discordWebhook();
-  if (!url) { console.log('[discord off]', content, embeds.map(e => e.title)); return false; }
+  if (!url || (process.env.DRY && !process.env.POST)) { console.log('[discord off]', content, embeds.map(e => e.title)); return false; }
   for (let i = 0; i < embeds.length || i === 0; i += 10) {
-    const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: i === 0 ? content : '', embeds: embeds.slice(i, i + 10), username: 'Ticketflip' }) });
-    if (!r.ok) throw new Error(`discord ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: i === 0 ? content : '', embeds: embeds.slice(i, i + 10), username: 'Ticketflip' }) });
+      if (r.status === 429) { const j = await r.json().catch(() => ({})); await new Promise(res => setTimeout(res, Math.ceil((j.retry_after || 1) * 1000) + 250)); continue; }
+      if (!r.ok) throw new Error(`discord ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      break;
+    }
+    await new Promise(res => setTimeout(res, 600)); // stay under the webhook's 30/min
     if (embeds.length <= 10) break;
   }
   return true;
