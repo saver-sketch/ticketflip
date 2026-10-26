@@ -28,7 +28,7 @@ async function parseSlow(text, channel) {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   try {
     const client = new Anthropic();
-    const r = await client.messages.create({ model: 'claude-opus-5-5', max_tokens: 200, output_config: { effort: 'low' }, messages: [{ role: 'user', content: `A member of a ticket-flipping Discord posted this in #${channel}: "${text}"\nIf it reports buying or selling tickets, reply with ONLY JSON {"action":"bought"|"sold","qty":<int>,"what":"<act + city/date as written>","price":<number per ticket>,"marketplace":"<StubHub|TickPick|Ticketmaster|Gametime|Vivid|null>"}. If it is not a buy/sell report, reply null.` }] });
+    const r = await client.messages.create({ model: 'claude-haiku-5-5', max_tokens: 200, output_config: { effort: 'low' }, messages: [{ role: 'user', content: `A member of a ticket-flipping Discord posted this in #${channel}: "${text}"\nIf it reports buying or selling tickets, reply with ONLY JSON {"action":"bought"|"sold","qty":<int>,"what":"<act + city/date as written>","price":<number per ticket>,"marketplace":"<StubHub|TickPick|Ticketmaster|Gametime|Vivid|null>"}. If it is not a buy/sell report, reply null.` }] });
     const t = r.content.filter(b => b.type === 'text').map(b => b.text).join('');
     const j = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] || 'null');
     return j && j.qty && j.price ? j : null;

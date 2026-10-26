@@ -8,7 +8,7 @@ const TOOLS = [
   { name: 'game_report', description: 'Full pre-game report for an upcoming game: both teams, records, last five results, injuries (out/doubtful), DraftKings spread/total/moneylines with the vig-free win %, ESPN FPI win %, Kalshi win % and YES prices, weather, venue, recent headlines. Call this for ANY question about who wins / odds / should I bet a specific game.', input_schema: { type: 'object', properties: { league: { type: 'string', enum: ['nfl', 'cfb', 'nba', 'nhl', 'mlb'] }, teams: { type: 'string', description: 'team names as the user wrote them, e.g. "cowboys eagles"' } }, required: ['league', 'teams'], additionalProperties: false }, strict: true },
   { name: 'football_board', description: 'Every NFL and college game on Kalshi in the next 8 days with both sides win %. Use for "what games are this week" or slate-wide questions.', input_schema: { type: 'object', properties: {}, additionalProperties: false }, strict: true },
   { name: 'crypto_report', description: 'Bitcoin or Ethereum: spot price, implied volatility, expected daily move, last 7 daily closes, and the Kalshi price ladder with YES asks. Use for any BTC/ETH question.', input_schema: { type: 'object', properties: { sym: { type: 'string', enum: ['BTC', 'ETH'] } }, required: ['sym'], additionalProperties: false }, strict: true },
-  { type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+  { type: 'web_search_20260209', name: 'web_search', max_uses: 2 },
 ];
 async function runTool(name, input) {
   try {
@@ -37,7 +37,7 @@ Be concrete and opinionated; markets are efficient so your number will usually b
 export async function analyze({ question, history = [], extraSystem = '', log = () => {} }) {
   const messages = [...history, { role: 'user', content: question }];
   for (let i = 0; i < 6; i++) {
-    const r = await anthropic.messages.create({ model: 'claude-opus-5-5', max_tokens: 1500, output_config: { effort: 'high' }, system: `${ANALYST_SYSTEM}\n\n${extraSystem}`, tools: TOOLS, messages });
+    const r = await anthropic.messages.create({ model: process.env.ANALYST_MODEL || 'claude-sonnet-5-5', max_tokens: 1200, output_config: { effort: 'medium' }, system: `${ANALYST_SYSTEM}\n\n${extraSystem}`, tools: TOOLS, messages });
     if (r.stop_reason === 'refusal') return 'I can\'t help with that one.';
     const toolUses = r.content.filter(b => b.type === 'tool_use');
     messages.push({ role: 'assistant', content: r.content });

@@ -16,15 +16,14 @@ export async function previews({ force = false } = {}) {
   const rows = await footballLines({ days: 2 });
   const today = localDay(), tomorrow = localDay(new Date(Date.now() + 864e5));
   const nfl = rows.filter(r => r.league === 'NFL' && (r.date === today || r.date === tomorrow));
-  const cfb = rows.filter(r => r.league === 'CFB' && (r.date === today || r.date === tomorrow)).sort((a, b) => b.vol - a.vol).slice(0, 3);
-  const games = [...nfl, ...cfb];
+  const games = nfl; // NFL only (college previews cost more than they're worth); ask the bot in #chat for any college game
   if (!games.length) { await logRun('previews', { games: 0 }); return; }
   const ch = process.env.DISCORD_KALSHI_CHANNEL_ID;
   await postAsBot(ch, { content: `🏈 **Game previews for ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: cfg.tz })}** — ${games.length} game${games.length > 1 ? 's' : ''} in the next day. Kalshi's number, my number, and why. Ask @Ticketflip in #chat for more on any of them.` });
   let done = 0;
   for (const g of games) {
     try {
-      const q = `Preview ${g.awayName} at ${g.homeName} (${g.league === 'NFL' ? 'NFL' : 'college football'}, ${g.date}). Use game_report (league "${g.league === 'NFL' ? 'nfl' : 'cfb'}", teams "${g.awayName} ${g.homeName}") and one web_search for injury/news updates. Follow the standard shape, under 200 words.`;
+      const q = `Preview ${g.awayName} at ${g.homeName} (${g.league === 'NFL' ? 'NFL' : 'college football'}, ${g.date}). Use game_report (league "${g.league === 'NFL' ? 'nfl' : 'cfb'}", teams "${g.awayName} ${g.homeName}") and at most one web_search for injury news. Follow the standard shape, under 180 words.`;
       const text = await analyze({ question: q, log: () => {} });
       await postAsBot(ch, { embeds: [{ title: `${g.awayName} @ ${g.homeName} · ${g.date}`, color: 0x5865f2, description: text.slice(0, 4000), footer: { text: 'preview · Kalshi % is the market, "my call" is the bot\'s reasoning · not an order' } }] });
       done++;

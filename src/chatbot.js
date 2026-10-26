@@ -64,7 +64,7 @@ client.on('messageCreate', async (msg) => {
     if (!question) return;
     await msg.channel.sendTyping();
     const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
-    const history = await msg.channel.messages.fetch({ limit: 12 });
+    const history = await msg.channel.messages.fetch({ limit: 8 });
     // Collapse prior turns into alternating user/assistant text (merge same-role neighbours).
     const raw = [...history.values()].filter(m => m.id !== msg.id && m.content).reverse().slice(-10).map(m => ({ role: m.author.id === client.user.id ? 'assistant' : 'user', content: `${m.author.id === client.user.id ? '' : m.author.displayName + ': '}${m.content.replace(/<@!?\d+>/g, '').slice(0, 800)}` }));
     const prior = []; for (const t of raw) { const last = prior[prior.length - 1]; if (last && last.role === t.role) last.content += '\n' + t.content; else prior.push({ ...t }); }
