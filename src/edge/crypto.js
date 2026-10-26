@@ -29,7 +29,7 @@ export async function scanCrypto({ bankroll = 500, minEdge = 0.03, minDepth = 20
         if (/between/.test(m.strikeType) && m.floor != null && m.cap != null) fairYes = probAbove(S, m.floor, sigma, tau) - probAbove(S, m.cap, sigma, tau);
         else if (/less|below/.test(m.strikeType)) fairYes = 1 - probAbove(S, m.cap ?? m.floor, sigma, tau);
         else fairYes = probAbove(S, m.floor ?? m.cap, sigma, tau);
-        if (fairYes < 0.03 || fairYes > 0.97) continue;
+        if (fairYes < 0.08 || fairYes > 0.92) continue; // tails: the lognormal model is least trustworthy there
         let ob; try { ob = await orderbook(m.ticker, 3); } catch { continue; }
         const yes = bestYesAsk(ob), no = bestNoAsk(ob);
         for (const [side, q, ask] of [['YES', fairYes, yes], ['NO', 1 - fairYes, no]]) {
