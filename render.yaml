@@ -12,8 +12,15 @@ services:
       - key: SEATGEEK_CLIENT_ID
         sync: false
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: ticketflip-db
+          property: connectionString
       - key: DISCORD_WEBHOOK_URL
         sync: false
       - key: BANKROLL
         value: "1500"
+databases:
+  - name: ticketflip-db
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"
