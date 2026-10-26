@@ -34,7 +34,8 @@ ${PLAYBOOK.map(p => `## ${p.title}\n${p.description}`).join('\n\n')}`;
 client.on('messageCreate', async (msg) => {
   try {
     if (msg.author.bot) return;
-    const mentioned = msg.mentions.has(client.user);
+    const mentioned = msg.mentions.has(client.user) || (msg.content || '').includes(`<@${client.user.id}>`);
+    console.log(`msg in ${msg.channelId} from ${msg.author.username}: mentioned=${mentioned} len=${(msg.content || '').length}`);
     const inThread = msg.channel.isThread() && msg.channel.ownerId === client.user.id;
     const prefixed = /^\?\s*\S/.test(msg.content || '');
     const inChat = !CHAT || msg.channelId === CHAT || (msg.channel.isThread() && msg.channel.parentId === CHAT);
@@ -51,7 +52,7 @@ client.on('messageCreate', async (msg) => {
     await msg.reply({ content: text, allowedMentions: { repliedUser: true } });
   } catch (e) { console.error('chat', e.message); try { await msg.reply('Something broke on my side. Ask again in a minute.'); } catch {} }
 });
-client.once('ready', () => console.log(`chatbot online as ${client.user.tag}; answering in channel ${CHAT || 'any'}`));
+client.once('clientReady', () => console.log(`chatbot online as ${client.user.tag}; answering in channel ${CHAT || 'any'}`));
 client.login(process.env.DISCORD_BOT_TOKEN).catch((e) => {
   if (/disallowed intents/i.test(e.message) && withContent) {
     console.log('Message Content intent is off in the dev portal → running mention-only (@Ticketflip). Flip it on to enable "?" questions.');
