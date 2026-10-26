@@ -37,8 +37,11 @@ export async function kalshiEdge({ post = true } = {}) {
     await sql`insert into kalshi_alerts ${sql({ ticker: a.market.ticker, side: a.side, kind: a.kind, fair: a.fair, price: a.ask.price, edge: a.edge, stake: a.stake, posted: post })}`;
     fresh.push(a);
   }
-  const ch = process.env.DISCORD_KALSHI_CHANNEL_ID;
-  if (post && fresh.length && ch) await postAsBot(ch, { content: `📊 **${fresh.length} edge${fresh.length > 1 ? 's' : ''} found** (fair value beats the ask by 3¢+ after fees). You place the trade; sizes assume a $${bankroll} bankroll.`, embeds: fresh.slice(0, 5).map(kalshiCard) });
+  const chS = process.env.DISCORD_KALSHI_CHANNEL_ID, chC = process.env.DISCORD_CRYPTO_CHANNEL_ID || chS;
+  for (const [kind, ch] of [['sports', chS], ['crypto', chC]]) {
+    const mine = fresh.filter(a => a.kind === kind);
+    if (post && mine.length && ch) await postAsBot(ch, { content: `📊 **${mine.length} ${kind} edge${mine.length > 1 ? 's' : ''}** — our fair value beats the price by 3¢+ after fees. You place the trade; stakes assume a $${bankroll} bankroll.`, embeds: mine.slice(0, 5).map(kalshiCard) });
+  }
   try { await upsertLinesBoard(); } catch (e) { console.error('lines board', e.message); }
   console.log(`kalshi: ${alerts.length} edges, ${fresh.length} new`);
   return { alerts, fresh };

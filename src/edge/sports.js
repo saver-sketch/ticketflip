@@ -5,10 +5,13 @@ import { evaluate } from './kelly.js';
 const LEAGUES = { KXNBAGAME: 'nba', KXNFLGAME: 'nfl', KXNHLGAME: 'nhl', KXMLBGAME: 'mlb', KXNCAAFGAME: 'cfb', KXNCAABGAME: 'cbb' };
 const MONTHS = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
 // KXNBAGAME-26OCT29MEMPOR → { date: 2026-10-29, away: MEM, home: POR }
-function parseEvent(eventTicker) {
-  const m = eventTicker.match(/-(\d{2})([A-Z]{3})(\d{2})([A-Z]{2,4})([A-Z]{2,4})$/);
+function parseEvent(eventTicker, mkts = []) {
+  const m = eventTicker.match(/-(\d{2})([A-Z]{3})(\d{2})([A-Z]+)$/);
   if (!m) return null;
-  const [, yy, mon, dd, a, h] = m; return { date: `20${yy}-${MONTHS[mon]}-${dd}`, away: a.toLowerCase(), home: h.toLowerCase() };
+  const codes = mkts.map(x => x.ticker.split('-').pop());
+  const away = codes.find(c => m[4].startsWith(c) && codes.includes(m[4].slice(c.length)));
+  if (!away) return null;
+  return { date: `20${m[1]}-${MONTHS[m[2]]}-${m[3]}`, away: away.toLowerCase(), home: m[4].slice(away.length).toLowerCase() };
 }
 async function polyGame(league, g) {
   const tryslugs = [`${league}-${g.away}-${g.home}-${g.date}`, `${league}-${g.home}-${g.away}-${g.date}`];
@@ -31,7 +34,7 @@ export async function scanSports({ bankroll = 500, minEdge = 0.03, minDepth = 20
     let ms; try { ms = await markets(series); } catch (e) { log(`kalshi ${series}: ${e.message}`); continue; }
     const byEvent = new Map(); for (const m of ms) { if (!byEvent.has(m.event)) byEvent.set(m.event, []); byEvent.get(m.event).push(m); }
     for (const [ev, mkts] of byEvent) {
-      const g = parseEvent(ev); if (!g) continue;
+      const g = parseEvent(ev, mkts); if (!g) continue;
       const daysOut = (new Date(mkts[0].close) - Date.now()) / 864e5; if (daysOut > 8) continue;
       let poly; try { poly = await polyGame(league, g); } catch { poly = null; }
       if (!poly || poly.liquidity < 2000) continue; // need a real reference price

@@ -5,7 +5,8 @@ import { sql } from '../db.js';
 
 const SERIES = { KXNFLGAME: 'NFL', KXNCAAFGAME: 'CFB' };
 const MONTHS = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
-const parse = (ev) => { const m = ev.match(/-(\d{2})([A-Z]{3})(\d{2})([A-Z]{2,4})([A-Z]{2,4})$/); return m ? { date: `20${m[1]}-${MONTHS[m[2]]}-${m[3]}`, away: m[4], home: m[5] } : null; };
+// KXNFLGAME-26NOV01PHIWAS + markets ending -PHI / -WAS → away PHI, home WAS (the codes are concatenated, so split using the market suffixes).
+const parse = (ev, mkts) => { const m = ev.match(/-(\d{2})([A-Z]{3})(\d{2})([A-Z]+)$/); if (!m) return null; const codes = mkts.map(x => x.ticker.split('-').pop()); const away = codes.find(c => m[4].startsWith(c) && codes.includes(m[4].slice(c.length))); if (!away) return null; return { date: `20${m[1]}-${MONTHS[m[2]]}-${m[3]}`, away, home: m[4].slice(away.length) }; };
 const mid = (m) => m.yesBid != null && m.yesAsk != null ? (m.yesBid + m.yesAsk) / 2 : m.last ?? null;
 async function poly(league, g) {
   for (const slug of [`${league}-${g.away}-${g.home}-${g.date}`, `${league}-${g.home}-${g.away}-${g.date}`].map(s => s.toLowerCase())) {
@@ -17,14 +18,14 @@ async function poly(league, g) {
   }
   return null;
 }
-export async function footballLines({ days = 7 } = {}) {
+export async function footballLines({ days = 8 } = {}) {
   const rows = [];
   for (const [series, league] of Object.entries(SERIES)) {
     let ms; try { ms = await markets(series); } catch { continue; }
     const byEvent = new Map(); for (const m of ms) { if (!byEvent.has(m.event)) byEvent.set(m.event, []); byEvent.get(m.event).push(m); }
     for (const [ev, mkts] of byEvent) {
-      const g = parse(ev); if (!g || mkts.length < 2) continue;
-      const close = new Date(mkts[0].close); if ((close - Date.now()) / 864e5 > days || close < Date.now()) continue;
+      const g = parse(ev, mkts); if (!g || mkts.length < 2) continue;
+      const gameDay = new Date(g.date + 'T23:59:00-05:00'); if ((gameDay - Date.now()) / 864e5 > days || gameDay < Date.now()) continue;
       const side = (code) => mkts.find(m => m.ticker.endsWith('-' + code));
       const a = side(g.away), h = side(g.home); if (!a || !h) continue;
       const pa = mid(a), ph = mid(h); if (pa == null || ph == null) continue;
@@ -37,16 +38,18 @@ export async function footballLines({ days = 7 } = {}) {
   }
   return rows.sort((x, y) => x.date.localeCompare(y.date) || y.vol - x.vol);
 }
+const NFL = { ARI: 'Cardinals', ATL: 'Falcons', BAL: 'Ravens', BUF: 'Bills', CAR: 'Panthers', CHI: 'Bears', CIN: 'Bengals', CLE: 'Browns', DAL: 'Cowboys', DEN: 'Broncos', DET: 'Lions', GB: 'Packers', HOU: 'Texans', IND: 'Colts', JAC: 'Jaguars', JAX: 'Jaguars', KC: 'Chiefs', LAC: 'Chargers', LAR: 'Rams', LV: 'Raiders', MIA: 'Dolphins', MIN: 'Vikings', NE: 'Patriots', NO: 'Saints', NYG: 'Giants', NYJ: 'Jets', PHI: 'Eagles', PIT: 'Steelers', SEA: 'Seahawks', SF: '49ers', TB: 'Buccaneers', TEN: 'Titans', WAS: 'Commanders' };
+const name = (r, side) => r.league === 'NFL' ? (NFL[side === 'away' ? r.away : r.home] || (side === 'away' ? r.awayName : r.homeName)) : (side === 'away' ? r.awayName : r.homeName);
 const pct = (p) => p == null ? '—' : `${Math.round(p * 100)}%`;
 export function linesEmbed(rows, league) {
-  const list = rows.filter(r => r.league === league);
-  const lines = list.slice(0, 40).map(r => {
+  let list = rows.filter(r => r.league === league);
+  if (league === 'CFB') list = [...list].sort((a, b) => b.vol - a.vol).slice(0, 15).sort((a, b) => a.date.localeCompare(b.date)); // biggest games only
+  const lines = list.map(r => {
     const d = new Date(r.date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' });
-    const verdict = r.gap == null ? '' : r.gap >= 0.04 ? ' 🟢 **edge**' : r.gap >= 0.025 ? ' 🟡 close' : '';
-    const c = (p) => p == null ? '—' : `${Math.round(p * 100)}¢`;
-    return `**${r.awayName} @ ${r.homeName}** · ${d}\n${r.away} ${c(r.askA)} → **${pct(r.kalshiA)}** · ${r.home} ${c(r.askH)} → **${pct(r.kalshiH)}**` + verdict;
+    const tag = r.gap == null ? '' : r.gap >= 0.04 ? '  🟢' : '';
+    return `${d} · **${name(r, 'away')}** ${pct(r.kalshiA)} @ **${name(r, 'home')}** ${pct(r.kalshiH)}${tag}`;
   });
-  return { title: `${league === 'NFL' ? '🏈 NFL' : '🏈 College football'} — Kalshi win odds (next 7 days)`, color: 0x5865f2, description: (lines.join('\n') || '_No games on Kalshi in the next 7 days._').slice(0, 4000), footer: { text: `¢ = price to buy YES on Kalshi right now · % = win odds that price implies (both sides scaled to 100) · 🟢 = we see an edge, 🟡 = close · updated` }, timestamp: new Date().toISOString() };
+  return { title: league === 'NFL' ? '🏈 NFL this week — win odds on Kalshi' : '🏈 College football — biggest games on Kalshi', color: 0x5865f2, description: (lines.join('\n') || '_No games on Kalshi in the next 7 days._').slice(0, 4000), footer: { text: '% = chance to win, from Kalshi prices · 🟢 = bot sees an edge, card posted below · refreshes every 15 min' }, timestamp: new Date().toISOString() };
 }
 // Post once, then edit the same message every run (bot token). Message ids live in kv.
 export async function upsertLinesBoard() {
