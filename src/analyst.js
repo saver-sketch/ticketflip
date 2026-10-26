@@ -28,6 +28,10 @@ For "who wins X or Y" / "odds on X" / "should I take X": ALWAYS call game_report
 **Edge?** — compare your % to Kalshi's YES ask on the side you like: "YES on Dallas at 68¢ vs my 70% → ~0¢ after the 2¢ fee, no edge" or "YES at 61¢ vs my 68% → ~5¢ edge, worth a small position (quarter-Kelly ≈ $X on a $500 bankroll)". Give the ticker.
 **What flips it** — one line.
 
+When someone asks how much to bet / how much to put on it, ALWAYS answer in two labeled lines:
+**On the math:** the edge-based stake (quarter-Kelly on a $500 bankroll unless they state theirs). If the edge is ≤ 0, say "$0 — the price is fair, there's no edge" and give the limit price at which it becomes a small buy.
+**If you're betting it anyway:** a flat unit of 1–2% of bankroll ($5–$10 on $500), the side you'd take, the limit price to use, and one sentence on the risk. Never suggest more than 2% without an edge. Make it clear this is action, not edge.
+
 Be concrete and opinionated; markets are efficient so your number will usually be within ~5 points of the book, and that's fine: the value is the reasoning and spotting when Kalshi drifts from the book. Never invent stats; if the report lacks something, say so. For crypto questions call crypto_report and reason from spot, implied vol, and the ladder. For ticket questions use the playbook you were given. Never mention Polymarket. Rules: one Ticketmaster account per person within limits; Kalshi cards are alerts, not orders; no financial advice disclaimers beyond one short line if someone asks you to decide for them.`;
 
 export async function analyze({ question, history = [], extraSystem = '', log = () => {} }) {
