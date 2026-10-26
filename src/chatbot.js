@@ -62,6 +62,11 @@ client.on('messageCreate', async (msg) => {
     if (!(mentioned || prefixed || inThread) || !inChat) return;
     const question = (msg.content || '').replace(/<@!?\d+>/g, '').replace(/^\?\s*/, '').trim();
     if (!question) return;
+    if (draining) return; // this instance is being replaced; the new one will answer
+    // Two instances overlap for ~30s on every deploy: claim the message in the DB so only one answers.
+    await sql`create table if not exists kv (k text primary key, v text)`;
+    const claimed = await sql`insert into kv (k, v) values (${'msg:' + msg.id}, ${String(Date.now())}) on conflict (k) do nothing returning k`;
+    if (!claimed.length) return;
     await msg.channel.sendTyping();
     const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
     const history = await msg.channel.messages.fetch({ limit: 8 });
@@ -73,7 +78,8 @@ client.on('messageCreate', async (msg) => {
     const ctx = await context();
     let text;
     try { text = await analyze({ question: `${msg.author.displayName}: ${question}`, history: prior.length && prior[prior.length - 1].role === 'user' ? prior.slice(0, -1) : prior, extraSystem: `${SYSTEM}\n\n# Live state right now\n${ctx}`, log: (l) => console.log('analyst', l) }); } finally { clearInterval(typing); }
-    text = (text || '').trim() || "I don't have a good answer for that one.";
+    text = (text || '').trim();
+    if (!text) { console.error('empty analyst reply; retrying once'); text = ((await analyze({ question: `${msg.author.displayName}: ${question}`, extraSystem: `${SYSTEM}\n\n# Live state right now\n${ctx}` })) || '').trim() || "I couldn't put an answer together. Ask it one more time."; }
     if (text.length > 1900) text = text.slice(0, 1890) + '…';
     await msg.reply({ content: text, allowedMentions: { repliedUser: true } });
   } catch (e) {
@@ -82,6 +88,8 @@ client.on('messageCreate', async (msg) => {
     try { await msg.reply(friendly); } catch {}
   }
 });
+let draining = false;
+process.on('SIGTERM', () => { draining = true; console.log('SIGTERM: draining, new instance takes over'); setTimeout(() => process.exit(0), 20000); });
 client.once('clientReady', () => console.log(`chatbot online as ${client.user.tag}; answering in channel ${CHAT || 'any'}`));
 client.login(process.env.DISCORD_BOT_TOKEN).catch((e) => {
   if (/disallowed intents/i.test(e.message) && withContent) {
