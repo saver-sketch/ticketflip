@@ -11,6 +11,8 @@ export const cfg = {
   sgClientId: () => process.env.SEATGEEK_CLIENT_ID || '',
   dbUrl: () => need('DATABASE_URL'),
   discordWebhook: () => process.env.DISCORD_WEBHOOK_URL || '',
+  alertsWebhook: () => process.env.DISCORD_ALERTS_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '',
+  startWebhook: () => process.env.DISCORD_START_WEBHOOK_URL || '',
   // Scan window: presales/onsales starting within this many days.
   horizonDays: Number(process.env.HORIZON_DAYS || 14),
   // Verdict thresholds on projected ROI (net profit / cash out).

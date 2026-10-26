@@ -23,7 +23,7 @@ const iso = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 // Every US music / arts event whose public onsale falls inside the horizon (queried one day at a time:
 // the API's onsaleStartDateTime filter floods the first pages with TBD 1900-01-01 placeholders).
 // Presales precede the public onsale, so presale-only windows are caught too.
-export async function upcomingOnsales({ days = cfg.horizonDays, segments = ['Music', 'Arts & Theatre'] } = {}) {
+export async function upcomingOnsales({ days = cfg.horizonDays, segments = ['Music', 'Arts & Theatre', 'Sports'] } = {}) {
   const now = new Date();
   const end = new Date(now.getTime() + days * 864e5);
   const out = new Map();

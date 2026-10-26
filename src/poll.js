@@ -7,7 +7,7 @@ import * as gt from './gametime.js';
 import { spotifyMonthlyListeners, instagramFollowers, deezerFans } from './signals.js';
 import { score } from './score.js';
 import { sql, init, upsertEvent, knownEvents, markPing, lastRun, logRun } from './db.js';
-import { embed, post } from './discord.js';
+import { card, alert, post, say } from './discord.js';
 import venues from '../data/venues.json' with { type: 'json' };
 
 const STALE_MS = 6 * 3600e3;
@@ -83,7 +83,7 @@ async function main() {
   // Instant ping: a NEW event that scores BUY (so he can register for Verified Fan / card presales early).
   // Instant pings: new BUY-grade events only, never on a cold database, at most 5 per run.
   const fresh = known.size ? scored.filter(x => !x.prev && x.sc.verdict === 'BUY').slice(0, 5) : [];
-  if (fresh.length) await post({ content: `🆕 ${fresh.length} new BUY-grade onsale${fresh.length > 1 ? 's' : ''} spotted`, embeds: fresh.slice(0, 10).map(x => embed(x.f, x.sc)) });
+  if (fresh.length) await post({ content: `🆕 New BUY-grade pick${fresh.length > 1 ? 's' : ''} just showed up (face price published + comparable dates reselling above it):`, embeds: dedupe(fresh).map(x => card(x.f, x.sc)) });
 
   // Timed pings on BUY/WATCH events: 24h before and 15 min before the first presale (or public onsale if none).
   const now = Date.now();
@@ -94,17 +94,23 @@ async function main() {
     if (!first) continue;
     const row = (await sql`select ping_24h, ping_15m from events where id = ${f.id}`)[0] || {};
     const dt = first - now;
-    if (!row.ping_24h && dt > 0 && dt <= 25 * 3600e3 && dt > 1 * 3600e3) { await post({ content: `⏰ Tomorrow: ${f.name}`, embeds: [embed(f, sc, { title: `24h · ${sc.verdict} · ${f.name}` })] }); await markPing(f.id, 'ping_24h'); timed++; }
-    if (!row.ping_15m && dt > 0 && dt <= 20 * 60e3) { await post({ content: `🚨 **Presale opens in ${Math.round(dt / 60e3)} min** — ${f.name}\n${f.presales[0]?.url || f.url}`, embeds: [embed(f, sc, { title: `GO · ${sc.verdict} · ${f.name}` })] }); await markPing(f.id, 'ping_15m'); timed++; }
+    if (sc.verdict !== 'BUY' && !(sc.verdict === 'WATCH' && sc.confidence >= 0.6)) continue; // alerts only for picks worth waking up for
+    if (!row.ping_24h && dt > 0 && dt <= 25 * 3600e3 && dt > 1 * 3600e3) { await say(cfg.alertsWebhook(), alert(f, sc, '24h')); await markPing(f.id, 'ping_24h'); timed++; }
+    if (!row.ping_15m && dt > 0 && dt <= 20 * 60e3) { await say(cfg.alertsWebhook(), alert(f, sc, '15m')); await markPing(f.id, 'ping_15m'); timed++; }
   }
 
   // Daily digest: top 10 by ROI among BUY/WATCH with a sale in the next 7 days.
   const forced = process.argv.includes('--digest');
   const last = await lastRun('digest');
   if (forced || (localHour() >= cfg.digestHourLocal && (!last || localDay(last) !== localDay()))) {
-    const week = dedupe(scored.filter(x => x.sc.verdict !== 'SKIP').sort((a, b) => b.sc.roi - a.sc.roi)).slice(0, 10);
-    const skipped = scored.length - week.length;
-    await post({ content: `☀️ **Ticketflip digest ${localDay()}** — ${scored.length} onsales in the next ${cfg.horizonDays} days, ${week.length} worth a look, ${skipped} skipped. Bankroll $${cfg.bankroll}.`, embeds: week.map(x => embed(x.f, x.sc)) });
+    const ranked = dedupe(scored.filter(x => x.sc.verdict !== 'SKIP').sort((a, b) => (b.sc.verdict === 'BUY') - (a.sc.verdict === 'BUY') || b.sc.confidence * b.sc.roi - a.sc.confidence * a.sc.roi));
+    const week = ranked.slice(0, 5);
+    const buys = scored.filter(x => x.sc.verdict === 'BUY').length, watch = scored.filter(x => x.sc.verdict === 'WATCH').length;
+    const header = [`☀️ **Ticketflip daily — ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: cfg.tz })}**`,
+      `Scanned **${scored.length}** presales/onsales in the next ${cfg.horizonDays} days → **${buys} BUY**, **${watch} WATCH**, rest skipped. Top ${week.length} below, best first.`,
+      buys ? '' : 'No BUYs today: a BUY needs the face price published **and** comparable dates already reselling above it. WATCH picks turn into BUYs as prices drop, and #alerts will ping you.',
+      'New here? Read #start-here first. Numbers assume the cheapest tier, Ticketmaster fees of ~25% on the way in and a ~15% marketplace cut on the way out.'].filter(Boolean).join('\n');
+    await post({ content: header, embeds: week.map(x => card(x.f, x.sc)) });
     await logRun('digest', { shown: week.length });
   }
   if (process.env.DRY) {
