@@ -17,6 +17,5 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^1.3.0"
-  },
-  "packageManager": "pnpm@11.0.8"
+  }
 }

@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: starter
     schedule: "*/15 * * * *"
-    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    buildCommand: npx pnpm@11 install --frozen-lockfile --prod
     startCommand: node src/poll.js
     envVars:
       - key: TM_API_KEY
