@@ -3,6 +3,7 @@ import { scanCrypto } from './edge/crypto.js';
 import { scanSports } from './edge/sports.js';
 import { sql, init } from './db.js';
 import { postAsBot } from './discord.js';
+import { upsertLinesBoard } from './edge/lines.js';
 
 const money = (n) => `$${Math.round(n)}`;
 const cents = (p) => `${Math.round(p * 100)}¢`;
@@ -38,6 +39,7 @@ export async function kalshiEdge({ post = true } = {}) {
   }
   const ch = process.env.DISCORD_KALSHI_CHANNEL_ID;
   if (post && fresh.length && ch) await postAsBot(ch, { content: `📊 **${fresh.length} edge${fresh.length > 1 ? 's' : ''} found** (fair value beats the ask by 3¢+ after fees). You place the trade; sizes assume a $${bankroll} bankroll.`, embeds: fresh.slice(0, 5).map(kalshiCard) });
+  try { await upsertLinesBoard(); } catch (e) { console.error('lines board', e.message); }
   console.log(`kalshi: ${alerts.length} edges, ${fresh.length} new`);
   return { alerts, fresh };
 }
