@@ -84,6 +84,14 @@ export const EXTRA = [
     'Price alerts you set yourself: type `watch NVDA below 110` in the channel.',
     'An "ideas" list from a rules screener, labeled as ideas. **Nothing in #stocks is a buy or sell call.** Nobody has an edge picking stocks from a Discord, including this bot. The useful part is the discipline: knowing what you hold, what\'s about to move it, and when you\'re over-concentrated.',
   ].join('\n') },
+  { title: '🎯 #stocks: the options desk', color: 0x5865f2, description: [
+    'Weekday mornings the desk posts 2–3 options ideas, each researched: the thesis and the evidence, the exact contract with a **limit entry price**, max loss, breakeven, **take-profit**, **stop**, and a **hard exit date**. Sunday night: the week ahead. Midday and close: updates on open ideas and a running scoreboard.',
+    '',
+    '**Tags**: 🟢 defined-risk spread (you can only lose the debit) · 🟡 earnings vol play (we bet on the *size* of the move vs what\'s priced in) · 🔴 lotto (cheap single-leg; expect most to expire worthless, the rare hit pays 3–10×).',
+    '**The one rule**: risk no more than 1–2% of whatever you trade with on any idea (🔴: half that). Options can go to zero. The desk is judged on its scoreboard over months, not on one trade.',
+    '**Exits are not optional**: take profit at the target, cut at the stop, and be out by the exit date even if it feels early. Holding losers through the date is how options accounts die.',
+    '**Nothing here is about anyone\'s account.** Ask @Ticketflip in #chat about any idea and it will explain the thesis and where it stands.',
+  ].join('\n') },
   { title: '🤖 Ask the bot anything', color: 0x57f287, description: [
     'Confused by a card, a number, or a step? Ask in **#chat**: start your message with `?` or tag **@Ticketflip**.',
     'It knows this playbook, today\'s picks, the Kalshi cards and the group ledger, and it answers like a friend who\'s done this before. Examples:',

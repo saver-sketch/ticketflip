@@ -8,6 +8,8 @@ const TOOLS = [
   { name: 'game_report', description: 'Full pre-game report for an upcoming game: both teams, records, last five results, injuries (out/doubtful), DraftKings spread/total/moneylines with the vig-free win %, ESPN FPI win %, Kalshi win % and YES prices, weather, venue, recent headlines. Call this for ANY question about who wins / odds / should I bet a specific game.', input_schema: { type: 'object', properties: { league: { type: 'string', enum: ['nfl', 'cfb', 'nba', 'nhl', 'mlb'] }, teams: { type: 'string', description: 'team names as the user wrote them, e.g. "cowboys eagles"' } }, required: ['league', 'teams'], additionalProperties: false }, strict: true },
   { name: 'football_board', description: 'Every NFL and college game on Kalshi in the next 8 days with both sides win %. Use for "what games are this week" or slate-wide questions.', input_schema: { type: 'object', properties: {}, additionalProperties: false }, strict: true },
   { name: 'crypto_report', description: 'Bitcoin or Ethereum: spot price, implied volatility, expected daily move, last 7 daily closes, and the Kalshi price ladder with YES asks. Use for any BTC/ETH question.', input_schema: { type: 'object', properties: { sym: { type: 'string', enum: ['BTC', 'ETH'] } }, required: ['sym'], additionalProperties: false }, strict: true },
+  { name: 'open_ideas', description: 'The options desk\'s current open ideas (ticker, structure, legs, entry, target, stop, exit date, thesis) and the desk scoreboard. Use for any question about an options idea posted in #stocks.', input_schema: { type: 'object', properties: {}, additionalProperties: false }, strict: true },
+  { name: 'open_ideas', description: 'The options desk\'s ideas (open and recently closed): ticker, structure, legs, entry, target, stop, exit date, catalyst, thesis, status, result. Use for any question about an options idea posted in #stocks.', input_schema: { type: 'object', properties: {}, additionalProperties: false }, strict: true },
   { type: 'web_search_20260209', name: 'web_search', max_uses: 2 },
 ];
 async function runTool(name, input) {
@@ -15,6 +17,8 @@ async function runTool(name, input) {
     if (name === 'game_report') return JSON.stringify(await gameReport(input.league, input.teams));
     if (name === 'football_board') return JSON.stringify((await footballLines()).map(r => `${r.league} ${r.date} ${r.awayName} ${Math.round(r.kalshiA * 100)}% @ ${r.homeName} ${Math.round(r.kalshiH * 100)}%`));
     if (name === 'crypto_report') return JSON.stringify(await cryptoReport(input.sym));
+    if (name === 'open_ideas') { const { execFile } = await import('node:child_process'); return await new Promise((res) => execFile(process.execPath, ['scripts/idea.mjs', 'json'], { env: process.env, cwd: new URL('..', import.meta.url).pathname }, (e, out) => res(e ? JSON.stringify({ error: e.message }) : out.trim() || '[]'))); }
+    if (name === 'open_ideas') { const { sql } = await import('./db.js'); const rows = await sql`select id, ticker, structure, legs, tag, entry, target, stop, exit_date, catalyst, thesis, status, close_price, result_r, posted_at from option_ideas order by posted_at desc limit 20`; return JSON.stringify(rows); }
   } catch (e) { return JSON.stringify({ error: e.message }); }
   return JSON.stringify({ error: 'unknown tool' });
 }
