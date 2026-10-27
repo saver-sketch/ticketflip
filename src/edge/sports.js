@@ -29,7 +29,7 @@ async function polyGame(league, g) {
 // Devig a two-way moneyline (American odds) with the proportional method.
 export function devig(odds) { const imp = odds.map(o => o > 0 ? 100 / (o + 100) : -o / (-o + 100)); const s = imp.reduce((a, b) => a + b, 0); return imp.map(x => x / s); }
 
-export async function scanSports({ bankroll = 500, minEdge = 0.03, minDepth = 200, log = () => {} } = {}) {
+export async function scanSports({ minEdge = 0.03, minDepth = 200, log = () => {} } = {}) {
   const out = [];
   for (const [series, league] of Object.entries(LEAGUES)) {
     let ms; try { ms = await markets(series); } catch (e) { log(`kalshi ${series}: ${e.message}`); continue; }
@@ -50,7 +50,7 @@ export async function scanSports({ bankroll = 500, minEdge = 0.03, minDepth = 20
         const yes = bestYesAsk(ob), no = bestNoAsk(ob);
         for (const [side, q, ask] of [['YES', fairYes, yes], ['NO', 1 - fairYes, no]]) {
           if (!ask || ask.size * ask.price < minDepth) continue;
-          const e = evaluate({ fair: q, price: ask.price, bankroll });
+          const e = evaluate({ fair: q, price: ask.price });
           if (e.edge >= minEdge) out.push({ kind: 'sports', league, market: m, side, fair: q, ask, ...e, ref, basis: `${ref.label}: ${m.yesSub} to win ${(fairYes * 100).toFixed(0)}% with the vig removed`, why: `The sportsbook line (${ref.label}) says ${m.yesSub} wins ${(fairYes * 100).toFixed(0)}% of the time once you strip the vig. Kalshi is asking ${(ask.price * 100).toFixed(0)}¢ for ${side} on ${m.yesSub}. That gap is bigger than Kalshi's fee.`, risks: ['Lines move: injuries and lineups shift the book fast; check the gap still exists when you click.', 'Sportsbooks shade popular sides; the vig-free number is an estimate, not truth.', 'Thin Kalshi book: size may not be there at the quoted price.'] });
         }
       }

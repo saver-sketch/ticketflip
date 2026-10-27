@@ -15,8 +15,8 @@ export function card(ev, sc) {
   const why = sc.why[0] ? sc.why[0].replace(/^Real evidence: /, '') : 'Small room, real fanbase.';
   const lines = [
     sc.verdict === 'BUY'
-      ? `**Buy ${sc.qty || 2} tickets**, cheapest tier, at ${money(sc.cost)} each all-in.`
-      : `**Buy ${sc.qty || 2} if the cheapest tier is ${money(sc.buyIfFace || sc.face)} or less.**`,
+      ? `**Buy** cheapest tier, ${money(sc.cost)} each all-in, up to ${sc.limit} per account.`
+      : `**Buy if the cheapest tier is ${money(sc.buyIfFace || sc.face)} or less**, up to ${sc.limit} per account.`,
     `**When:** ${when}${c?.how ? `\n**Code:** ${cut(c.how, 160)}` : ''}`,
     `**Link:** ${c?.url || ev.url}`,
     `**Sell:** ${sc.sellRank[0].name} at ~${money(sc.sell)} within 48h → ~${money(sc.net)} profit each.`,
@@ -31,7 +31,7 @@ export function alert(ev, sc, kind) {
   const c = sc.code[0]; const when = c ? c.start : ev.onsale; const act = ev.attraction.name || ev.name;
   return [
     kind === '15m' ? `🚨 **${act} · ${ev.venue.city} — opens in ${Math.max(1, Math.round((new Date(when) - Date.now()) / 60e3))} min**` : `⏰ **${act} · ${ev.venue.city} — tomorrow ${ts(when, 't')}**`,
-    `Buy ${sc.qty || 2}, cheapest tier, ~${money(sc.cost)} each → sell on ${sc.sellRank[0].name} at ~${money(sc.sell)}.`,
+    `Cheapest tier, ~${money(sc.cost)} each (limit ${sc.limit}) → sell on ${sc.sellRank[0].name} at ~${money(sc.sell)}.`,
     `${c?.url || ev.url}`,
     c?.how ? `Code: ${cut(c.how, 140)}` : '',
   ].filter(Boolean).join('\n');

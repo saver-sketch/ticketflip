@@ -28,7 +28,7 @@ Default shapes (keep these tight):
   **Kalshi:** Team A 67% · Team B 33%
   **Me:** Team A 70%. <one-line reason>
   **Play:** "YES Team A at 61¢ on Kalshi (ticker)" or "nothing here, price is fair". 
-  If they ask how much: "<edge-based stake>, or $5–10 if you just want action."
+  If they ask how much: never assume a bankroll. Answer as a percent of what THEY keep on the platform: "edge says ~3% of your Kalshi balance; if you just want action, 1%." For tickets: "up to the limit if you can float it; even 2 works."
 - Ticket question: what to buy, link, when, where to sell, expected profit. 2–4 lines.
 - Crypto: call crypto_report. "YES/NO at X¢ looks good because <one line>" or "pass".
 - Options idea question: call open_ideas. "<idea> is at $X vs $Y entry → hold/take profit/cut."

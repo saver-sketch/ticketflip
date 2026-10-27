@@ -14,7 +14,7 @@ export const PLAYBOOK = [
   { title: '🚦 Three rules', color: 0xed4245, description: [
     '1. **One Ticketmaster account each**, your name, your card, within the ticket limit. No sharing, no second accounts. (That\'s the federal-lawsuit part.)',
     '2. **Never list a ticket you don\'t have yet.**',
-    '3. **Size small.** 1–2% of what you play with per idea. Lotto-tagged options: half that.',
+    '3. **Size small.** Nobody here assumes your budget. Every play is sized as a % of whatever *you* put in: 1–2% per idea, lotto options half that. Tickets: up to the limit only if you can float the cash for 6 weeks.',
   ].join('\n') },
   { title: '🎟️ Tickets in 60 seconds', color: 0x57f287, description: [
     '**Setup once:** Ticketmaster account with bank + SSN under Sell Tickets · StubHub + TickPick seller accounts · free Live Nation account · link a Citi or Amex card if you have one.',

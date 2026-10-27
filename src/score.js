@@ -68,7 +68,7 @@ export function score(f, s) {
   const net = r2(sell * (1 - cfg.sellerFee) - cost);
   const roi = cost ? r2(net / cost) : 0;
   const limit = f.ticketLimit || 4;
-  const qty = face ? Math.max(0, Math.min(limit, Math.floor((cfg.bankroll * 0.3) / cost))) : 0;
+  const qty = Math.min(limit, 4); // up to the posted limit; no bankroll assumed
 
   let verdict = 'SKIP';
   if (!flags.length && face > 0) verdict = roi >= cfg.buyRoi && conf >= 0.4 ? 'BUY' : roi >= cfg.watchRoi ? 'WATCH' : 'SKIP';
@@ -90,7 +90,7 @@ export function score(f, s) {
   const code = codeSource(f);
   const tier = sports ? 'Buy the cheapest seats in the section with the lowest price; upper-level corners resell by percentage just as well.' : 'Buy the cheapest price tier (usually GA floor or the lowest-priced section). Skip VIP and Platinum: no margin on those.';
 
-  return { premium: r2(premium), confidence: r2(conf), label, face: r2(face), faceEst, buyIfFace, fans, observed, listings, cost, sell, net, roi, qty, limit, bankroll: r2(cost * qty), verdict, flags, notes, why, risks, sellRank, exit, code, tier, sellAt: sellRank[0].name };
+  return { premium: r2(premium), confidence: r2(conf), label, face: r2(face), faceEst, buyIfFace, fans, observed, listings, cost, sell, net, roi, qty, limit, verdict, flags, notes, why, risks, sellRank, exit, code, tier, sellAt: sellRank[0].name };
 }
 
 // What a member has to do to get into each presale, from Ticketmaster's presale names.
