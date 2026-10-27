@@ -6,7 +6,11 @@ const H = { authorization: `Bot ${TOK}`, 'content-type': 'application/json' };
 const api = async (p, init = {}) => { const r = await fetch('https://discord.com/api/v10' + p, { ...init, headers: H }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`discord ${r.status} ${JSON.stringify(j).slice(0, 120)}`); return j; };
 async function load() {
   const pins = await api(`/channels/${CH}/pins`);
-  const pin = (Array.isArray(pins) ? pins : pins.items?.map(x => x.message) || []).find(m => m.content?.startsWith('LEDGER'));
+  let pin = (Array.isArray(pins) ? pins : pins.items?.map(x => x.message) || []).find(m => m.content?.startsWith('LEDGER'));
+  if (!pin) { // pinning needs the PIN_MESSAGES permission the bot may lack: fall back to the newest LEDGER message in the channel
+    const recent = await api(`/channels/${CH}/messages?limit=50`);
+    pin = (Array.isArray(recent) ? recent : []).find(m => m.content?.startsWith('LEDGER'));
+  }
   if (!pin) return { msgId: null, ideas: [] };
   const m = pin.content.match(/```json\n([\s\S]*?)```/); return { msgId: pin.id, ideas: m ? JSON.parse(m[1]) : [] };
 }
@@ -14,7 +18,7 @@ async function save(state, ideas) {
   const content = 'LEDGER (bot storage, do not edit)\n```json\n' + JSON.stringify(ideas) + '\n```';
   if (content.length > 1900) { const open = ideas.filter(i => i.status === 'open'); const closed = ideas.filter(i => i.status !== 'open').slice(-40); return save(state, [...closed, ...open]); }
   if (state.msgId) await api(`/channels/${CH}/messages/${state.msgId}`, { method: 'PATCH', body: JSON.stringify({ content }) });
-  else { const m = await api(`/channels/${CH}/messages`, { method: 'POST', body: JSON.stringify({ content }) }); await api(`/channels/${CH}/pins/${m.id}`, { method: 'PUT' }); }
+  else { const m = await api(`/channels/${CH}/messages`, { method: 'POST', body: JSON.stringify({ content }) }); try { await api(`/channels/${CH}/pins/${m.id}`, { method: 'PUT' }); } catch (e) { console.error(`ledger saved but not pinned (${e.message}); load() falls back to newest LEDGER message`); } }
 }
 const args = Object.fromEntries(process.argv.slice(3).join(' ').split(/\s+--/).filter(Boolean).map(s => { const [k, ...v] = s.replace(/^--/, '').split(' '); return [k, v.join(' ').replace(/^"|"$/g, '')]; }));
 const cmd = process.argv[2];
