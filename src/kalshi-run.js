@@ -9,20 +9,16 @@ const money = (n) => `$${Math.round(n)}`;
 const cents = (p) => `${Math.round(p * 100)}¢`;
 export function kalshiCard(a) {
   const m = a.market;
-  const title = `${a.kind === 'crypto' ? '₿' : '🏀'} ${a.side} · ${m.title}${a.kind === 'crypto' ? ` · ${m.yesSub}` : ` · ${m.yesSub}`}`.slice(0, 250);
-  const closeTs = `<t:${Math.floor(new Date(m.close) / 1000)}:f>`;
-  return {
-    title, url: `https://kalshi.com/markets/${m.event.split('-')[0].toLowerCase()}`, color: a.edge >= 0.06 ? 0x2ecc71 : 0xf1c40f,
-    description: `**Buy ${a.side} at ${cents(a.ask.price)}** (fee ${cents(a.fee)}, all-in ${cents(a.cost)}). Our fair value: **${cents(a.fair)}**. Edge after fees: **${cents(a.edge)} (${Math.round(a.edgePct * 100)}%)**.`,
-    fields: [
-      { name: '💡 Why the market is wrong', value: a.why.slice(0, 1000) },
-      { name: '📐 Where our number comes from', value: a.basis.slice(0, 1000) },
-      { name: '💵 Stake (quarter-Kelly on your bankroll)', value: `${money(a.stake)} → ${a.contracts} contracts. Depth at this price: ${Math.round(a.ask.size)} contracts. Closes ${closeTs}.` },
-      { name: '🛒 How to place it', value: `Kalshi app → search \`${m.ticker}\` → ${a.side} → limit order at ${cents(a.ask.price)} or better, ${a.contracts} contracts. Don't chase: if the ask moved past ${cents(a.ask.price + 0.01)}, skip.` },
-      { name: '⚠️ What breaks it', value: a.risks.slice(0, 3).map(r => `• ${r}`).join('\n') },
-    ],
-    footer: { text: `${m.ticker} · ${a.kind} · alert, not an order` },
-  };
+  const what = a.kind === 'crypto' ? `${m.yesSub} by ${new Date(m.close).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', timeZone: 'America/Los_Angeles' })}` : m.yesSub;
+  const title = `${a.kind === 'crypto' ? '₿' : '🏈'} Buy ${a.side} · ${m.title.replace(/\?$/, '')} · ${what}`.slice(0, 250);
+  const lines = [
+    `**Do:** buy **${a.side} at ${cents(a.ask.price)} or better**, ${a.contracts} contracts (~${money(a.stake)}). Limit order, don't chase past ${cents(a.ask.price + 0.01)}.`,
+    `**Where:** Kalshi → search \`${m.ticker}\``,
+    `**Why:** fair value ${cents(a.fair)}, you're paying ${cents(a.cost)} all-in → **${cents(a.edge)} edge**. ${a.why.split('. ')[0]}.`,
+    `**Out:** hold to settlement (closes <t:${Math.floor(new Date(m.close) / 1000)}:f>).`,
+    `_More? Ask @Ticketflip in #chat._`,
+  ];
+  return { title, url: `https://kalshi.com/markets/${m.event.split('-')[0].toLowerCase()}`, color: a.edge >= 0.06 ? 0x2ecc71 : 0xf1c40f, description: lines.join('\n').slice(0, 1500), footer: { text: `${m.ticker} · alert, not an order · size assumes a $${process.env.KALSHI_BANKROLL || 500} bankroll` } };
 }
 
 export async function kalshiEdge({ post = true } = {}) {
@@ -40,7 +36,7 @@ export async function kalshiEdge({ post = true } = {}) {
   const chS = process.env.DISCORD_KALSHI_CHANNEL_ID, chC = process.env.DISCORD_CRYPTO_CHANNEL_ID || chS;
   for (const [kind, ch] of [['sports', chS], ['crypto', chC]]) {
     const mine = fresh.filter(a => a.kind === kind);
-    if (post && mine.length && ch) await postAsBot(ch, { content: `📊 **${mine.length} ${kind} edge${mine.length > 1 ? 's' : ''}** — our fair value beats the price by 3¢+ after fees. You place the trade; stakes assume a $${bankroll} bankroll.`, embeds: mine.slice(0, 5).map(kalshiCard) });
+    if (post && mine.length && ch) await postAsBot(ch, { content: `📊 **${mine.length} ${kind} play${mine.length > 1 ? 's' : ''}** right now:`, embeds: mine.slice(0, 5).map(kalshiCard) });
   }
   try { await upsertLinesBoard(); } catch (e) { console.error('lines board', e.message); }
   console.log(`kalshi: ${alerts.length} edges, ${fresh.length} new`);

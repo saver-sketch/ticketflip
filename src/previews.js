@@ -19,13 +19,13 @@ export async function previews({ force = false } = {}) {
   const games = nfl; // NFL only (college previews cost more than they're worth); ask the bot in #chat for any college game
   if (!games.length) { await logRun('previews', { games: 0 }); return; }
   const ch = process.env.DISCORD_KALSHI_CHANNEL_ID;
-  await postAsBot(ch, { content: `🏈 **Game previews for ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: cfg.tz })}** — ${games.length} game${games.length > 1 ? 's' : ''} in the next day. Kalshi's number, my number, and why. Ask @Ticketflip in #chat for more on any of them.` });
+  await postAsBot(ch, { content: `🏈 **Today's games — ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: cfg.tz })}**` });
   let done = 0;
   for (const g of games) {
     try {
-      const q = `Preview ${g.awayName} at ${g.homeName} (${g.league === 'NFL' ? 'NFL' : 'college football'}, ${g.date}). Use game_report (league "${g.league === 'NFL' ? 'nfl' : 'cfb'}", teams "${g.awayName} ${g.homeName}") and at most one web_search for injury news. Follow the standard shape, under 180 words.`;
+      const q = `Preview ${g.awayName} at ${g.homeName} (${g.league === 'NFL' ? 'NFL' : 'college football'}, ${g.date}). Use game_report (league "${g.league === 'NFL' ? 'nfl' : 'cfb'}", teams "${g.awayName} ${g.homeName}") and at most one web_search for injury news. Use the SHORT preview shape: 4 lines max.`;
       const text = await analyze({ question: q, log: () => {} });
-      await postAsBot(ch, { embeds: [{ title: `${g.awayName} @ ${g.homeName} · ${g.date}`, color: 0x5865f2, description: text.slice(0, 4000), footer: { text: 'preview · Kalshi % is the market, "my call" is the bot\'s reasoning · not an order' } }] });
+      await postAsBot(ch, { embeds: [{ title: `${g.awayName} @ ${g.homeName} · ${g.date}`, color: 0x5865f2, description: text.slice(0, 4000), footer: { text: 'ask @Ticketflip in #chat for the full breakdown' } }] });
       done++;
     } catch (e) { console.error('preview', g.awayName, e.message); }
   }

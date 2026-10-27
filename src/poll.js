@@ -89,7 +89,7 @@ async function main() {
   // Instant ping: a NEW event that scores BUY (so he can register for Verified Fan / card presales early).
   // Instant pings: new BUY-grade events only, never on a cold database, at most 5 per run.
   const fresh = known.size ? scored.filter(x => !x.prev && x.sc.verdict === 'BUY').slice(0, 5) : [];
-  if (fresh.length) await post({ content: `🆕 New BUY-grade pick${fresh.length > 1 ? 's' : ''} just showed up (face price published + comparable dates reselling above it):`, embeds: dedupe(fresh).map(x => card(x.f, x.sc)) });
+  if (fresh.length) await post({ content: `🆕 **New buy${fresh.length > 1 ? 's' : ''}:**`, embeds: dedupe(fresh).map(x => card(x.f, x.sc)) });
 
   // Timed pings on BUY/WATCH events: 24h before and 15 min before the first presale (or public onsale if none).
   const now = Date.now();
@@ -112,10 +112,7 @@ async function main() {
     const ranked = dedupe(scored.filter(x => x.sc.verdict !== 'SKIP').sort((a, b) => (b.sc.verdict === 'BUY') - (a.sc.verdict === 'BUY') || b.sc.confidence * b.sc.roi - a.sc.confidence * a.sc.roi));
     const week = ranked.slice(0, 5);
     const buys = scored.filter(x => x.sc.verdict === 'BUY').length, watch = scored.filter(x => x.sc.verdict === 'WATCH').length;
-    const header = [`☀️ **Ticketflip daily — ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: cfg.tz })}**`,
-      `Scanned **${scored.length}** presales/onsales in the next ${cfg.horizonDays} days → **${buys} BUY**, **${watch} WATCH**, rest skipped. Top ${week.length} below, best first.`,
-      buys ? '' : 'No BUYs today: a BUY needs the face price published **and** comparable dates already reselling above it. WATCH picks turn into BUYs as prices drop, and #alerts will ping you.',
-      'New here? Read #start-here first. Numbers assume the cheapest tier, Ticketmaster fees of ~25% on the way in and a ~15% marketplace cut on the way out.'].filter(Boolean).join('\n');
+    const header = `☀️ **Today's picks — ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: cfg.tz })}** · ${buys} buy · ${watch} watch${buys ? '' : ' · no buys yet (prices not out); watch picks say what price makes them a buy'}`;
     await post({ content: header, embeds: week.map(x => card(x.f, x.sc)) });
     await logRun('digest', { shown: week.length });
   }
