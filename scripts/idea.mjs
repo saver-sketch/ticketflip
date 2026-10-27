@@ -15,10 +15,14 @@ async function load() {
   const m = pin.content.match(/```json\n([\s\S]*?)```/); return { msgId: pin.id, ideas: m ? JSON.parse(m[1]) : [] };
 }
 async function save(state, ideas) {
-  const content = 'LEDGER (bot storage, do not edit)\n```json\n' + JSON.stringify(ideas) + '\n```';
-  if (content.length > 1900) { const open = ideas.filter(i => i.status === 'open'); const closed = ideas.filter(i => i.status !== 'open').slice(-40); return save(state, [...closed, ...open]); }
+  const body = (list) => 'LEDGER (bot storage, do not edit)\n```json\n' + JSON.stringify(list) + '\n```';
+  // Fit under Discord's 2,000-char message cap: drop old closed/retired rows, then shorten theses.
+  let list = ideas; let content = body(list);
+  if (content.length > 1900) { const open = list.filter(i => i.status === 'open'); const done = list.filter(i => i.status !== 'open').slice(-20); list = [...done, ...open]; content = body(list); }
+  for (const cap of [300, 200, 120, 60, 0]) { if (content.length <= 1900) break; list = list.map(i => ({ ...i, thesis: (i.thesis || '').slice(0, cap) })); content = body(list); }
+  while (content.length > 1900 && list.some(i => i.status !== 'open')) { list = list.filter((i, idx) => !(i.status !== 'open' && idx === list.findIndex(x => x.status !== 'open'))); content = body(list); }
   if (state.msgId) await api(`/channels/${CH}/messages/${state.msgId}`, { method: 'PATCH', body: JSON.stringify({ content }) });
-  else { const m = await api(`/channels/${CH}/messages`, { method: 'POST', body: JSON.stringify({ content }) }); try { await api(`/channels/${CH}/pins/${m.id}`, { method: 'PUT' }); } catch (e) { console.error(`ledger saved but not pinned (${e.message}); load() falls back to newest LEDGER message`); } }
+  else { const m = await api(`/channels/${CH}/messages`, { method: 'POST', body: JSON.stringify({ content }) }); await api(`/channels/${CH}/pins/${m.id}`, { method: 'PUT' }).catch(() => {}); }
 }
 const args = Object.fromEntries(process.argv.slice(3).join(' ').split(/\s+--/).filter(Boolean).map(s => { const [k, ...v] = s.replace(/^--/, '').split(' '); return [k, v.join(' ').replace(/^"|"$/g, '')]; }));
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
