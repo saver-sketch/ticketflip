@@ -95,12 +95,12 @@ async function main() {
   const now = Date.now();
   let timed = 0;
   for (const { f, sc } of scored) {
-    if (sc.verdict === 'SKIP' || timed >= 6) continue;
+    if (sc.verdict === 'SKIP' || timed >= 3) continue;
     const first = [...f.presales.map(p => p.start), f.onsale].filter(Boolean).map(d => new Date(d).getTime()).sort()[0];
     if (!first) continue;
     const row = (await sql`select ping_24h, ping_15m from events where id = ${f.id}`)[0] || {};
     const dt = first - now;
-    if (sc.verdict !== 'BUY' && !(sc.verdict === 'WATCH' && sc.confidence >= 0.6)) continue; // alerts only for picks worth waking up for
+    if (sc.verdict !== 'BUY') continue; // alerts are for BUYs only; WATCH lives in the daily digest
     if (!row.ping_24h && dt > 0 && dt <= 25 * 3600e3 && dt > 1 * 3600e3) { await say(cfg.alertsWebhook(), alert(f, sc, '24h')); await markPing(f.id, 'ping_24h'); timed++; }
     if (!row.ping_15m && dt > 0 && dt <= 20 * 60e3) { await say(cfg.alertsWebhook(), alert(f, sc, '15m')); await markPing(f.id, 'ping_15m'); timed++; }
   }
