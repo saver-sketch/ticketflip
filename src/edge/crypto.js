@@ -3,7 +3,8 @@
 import { markets, orderbook, bestYesAsk, bestNoAsk } from '../kalshi.js';
 import { evaluate } from './kelly.js';
 
-const SERIES = { BTC: ['KXBTCD', 'KXBTC'], ETH: ['KXETHD', 'KXETH'] };
+// His call 10/27: Bitcoin 15-minute contracts ONLY.
+const SERIES = { BTC: ['KXBTC15M'] };
 async function spot(sym) { const j = await (await fetch(`https://api.coinbase.com/v2/prices/${sym}-USD/spot`)).json(); return Number(j.data.amount); }
 async function dvol(sym) {
   const end = Date.now(), start = end - 3 * 3600e3;
@@ -24,7 +25,8 @@ export async function scanCrypto({ bankroll = 500, minEdge = 0.03, minDepth = 20
       for (const m of ms) {
         if (!m.close || (m.floor == null && m.cap == null)) continue;
         const tau = (new Date(m.close) - Date.now()) / (365.25 * 864e5);
-        if (tau <= 20 / (60 * 24 * 365.25)) continue; // < 20 min: noise
+        const minsLeft = tau * 365.25 * 24 * 60;
+        if (minsLeft < 3 || minsLeft > 16) continue; // only the live 15-minute window, with time to act
         let fairYes;
         if (/between/.test(m.strikeType) && m.floor != null && m.cap != null) fairYes = probAbove(S, m.floor, sigma, tau) - probAbove(S, m.cap, sigma, tau);
         else if (/less|below/.test(m.strikeType)) fairYes = 1 - probAbove(S, m.cap ?? m.floor, sigma, tau);
@@ -35,7 +37,7 @@ export async function scanCrypto({ bankroll = 500, minEdge = 0.03, minDepth = 20
         for (const [side, q, ask] of [['YES', fairYes, yes], ['NO', 1 - fairYes, no]]) {
           if (!ask || ask.size * ask.price < minDepth) continue;
           const ev = evaluate({ fair: q, price: ask.price, bankroll });
-          if (ev.edge >= minEdge) out.push({ kind: 'crypto', sym, market: m, side, fair: q, ask, ...ev, basis: `spot $${Math.round(S).toLocaleString()} · implied vol ${(sigma * 100).toFixed(0)}% (Deribit DVOL) · ${(tau * 365.25 * 24).toFixed(1)}h to close`, why: `With ${sym} at $${Math.round(S).toLocaleString()} and the options market pricing ${(sigma * 100).toFixed(0)}% annual vol, the odds of ${m.yesSub} by close are ${(fairYes * 100).toFixed(0)}%. Kalshi is asking ${(ask.price * 100).toFixed(0)}¢ for ${side}.`, risks: ['Vol-model math: a news shock moves the index more than the model expects.', 'Kalshi settles on the CF Benchmarks index average over the final minute, not the Coinbase print.', 'Thin books: your fill can be worse than the quoted ask.'] });
+          if (ev.edge >= minEdge) out.push({ kind: 'crypto', sym, market: m, side, fair: q, ask, ...ev, basis: `spot $${Math.round(S).toLocaleString()} vs line $${Math.round(m.strike).toLocaleString()} · vol ${(sigma * 100).toFixed(0)}% · ${minsLeft.toFixed(0)} min left`, why: `BTC is at $${Math.round(S).toLocaleString()}, the line is $${Math.round(m.strike).toLocaleString()}, ${minsLeft.toFixed(0)} min left → ${(fairYes * 100).toFixed(0)}% it finishes above. Kalshi wants ${(ask.price * 100).toFixed(0)}¢ for ${side}.`, risks: ['Vol-model math: a news shock moves the index more than the model expects.', 'Kalshi settles on the CF Benchmarks index average over the final minute, not the Coinbase print.', 'Thin books: your fill can be worse than the quoted ask.'] });
         }
       }
     }

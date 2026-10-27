@@ -9,13 +9,13 @@ const money = (n) => `$${Math.round(n)}`;
 const cents = (p) => `${Math.round(p * 100)}¢`;
 export function kalshiCard(a) {
   const m = a.market;
-  const what = a.kind === 'crypto' ? `${m.yesSub} by ${new Date(m.close).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', timeZone: 'America/Los_Angeles' })}` : m.yesSub;
+  const what = a.kind === 'crypto' ? `BTC ${a.side === 'YES' ? 'above' : 'below'} $${Math.round(m.strike).toLocaleString()} at ${new Date(m.close).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })}` : m.yesSub;
   const title = `${a.kind === 'crypto' ? '₿' : '🏈'} Buy ${a.side} · ${m.title.replace(/\?$/, '')} · ${what}`.slice(0, 250);
   const lines = [
     `**Do:** buy **${a.side} at ${cents(a.ask.price)} or better**, ${a.contracts} contracts (~${money(a.stake)}). Limit order, don't chase past ${cents(a.ask.price + 0.01)}.`,
     `**Where:** Kalshi → search \`${m.ticker}\``,
     `**Why:** fair value ${cents(a.fair)}, you're paying ${cents(a.cost)} all-in → **${cents(a.edge)} edge**. ${a.why.split('. ')[0]}.`,
-    `**Out:** hold to settlement (closes <t:${Math.floor(new Date(m.close) / 1000)}:f>).`,
+    `**Out:** settles <t:${Math.floor(new Date(m.close) / 1000)}:R>. No exit needed.`,
     `_More? Ask @Ticketflip in #chat._`,
   ];
   return { title, url: `https://kalshi.com/markets/${m.event.split('-')[0].toLowerCase()}`, color: a.edge >= 0.06 ? 0x2ecc71 : 0xf1c40f, description: lines.join('\n').slice(0, 1500), footer: { text: `${m.ticker} · alert, not an order · size assumes a $${process.env.KALSHI_BANKROLL || 500} bankroll` } };

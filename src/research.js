@@ -53,7 +53,7 @@ export async function cryptoReport(sym = 'BTC') {
   const sigma = dv.result?.data?.slice(-1)[0]?.[4];
   const candles = await (await fetch(`https://api.exchange.coinbase.com/products/${sym}-USD/candles?granularity=86400`)).json().catch(() => []);
   const last7 = Array.isArray(candles) ? candles.slice(0, 7).map(c => ({ day: new Date(c[0] * 1000).toISOString().slice(0, 10), close: c[4], change: Math.round(((c[4] - c[3]) / c[3]) * 1000) / 10 })) : [];
-  const ladder = (await markets(sym === 'BTC' ? 'KXBTCD' : 'KXETHD')).filter(m => m.yesAsk != null).sort((a, b) => (a.strike || 0) - (b.strike || 0)).map(m => `${m.yesSub} YES ${Math.round(m.yesAsk * 100)}¢ (closes ${m.close.slice(0, 16)}Z)`);
+  const ladder = (await markets('KXBTC15M')).filter(m => m.yesAsk != null && new Date(m.close) > Date.now()).map(m => `15-min: BTC ≥ $${Math.round(m.strike)} at ${m.close.slice(11, 16)}Z → YES ${Math.round(m.yesAsk * 100)}¢ / NO ${Math.round((1 - (m.yesBid ?? m.yesAsk)) * 100)}¢`);
   return { sym, spot, impliedVolPct: sigma, dailyMovePct: sigma ? Math.round(sigma / Math.sqrt(365) * 10) / 10 : null, last7, kalshiLadder: ladder.slice(0, 30) };
 }
 

@@ -65,6 +65,7 @@ function localDay(d = new Date()) { return new Intl.DateTimeFormat('en-CA', { ti
 
 async function main() {
   await init();
+  try { await kalshiEdge(); } catch (e) { console.error('kalshi', e.message); }
   const raw = await upcomingOnsales();
   const flats = raw.map(flatten);
   const known = await knownEvents(flats.map(f => f.id));
@@ -83,7 +84,6 @@ async function main() {
   }
   await logRun('poll', { events: scored.length, buy: scored.filter(x => x.sc.verdict === 'BUY').length });
   try { await ingest(); } catch (e) { console.error('ledger', e.message); }
-  try { await kalshiEdge(); } catch (e) { console.error('kalshi', e.message); }
   try { await previews(); } catch (e) { console.error('previews', e.message); }
 
   // Instant ping: a NEW event that scores BUY (so he can register for Verified Fan / card presales early).
