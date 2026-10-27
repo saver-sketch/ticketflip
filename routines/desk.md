@@ -1,5 +1,8 @@
 # Options desk — weekday morning (run before the US open)
 
+## ONLY plain calls and puts (his rule 10/27)
+Every idea is a single-leg **buy call** or **buy put** that a beginner can place on Robinhood's basic options screen. No spreads, condors, credit trades, or selling options. If the research says "big move, direction unclear" around earnings, post it as TWO lines in one idea: buy the call AND buy the put (same expiry), tagged 🟡. Default expiries 2–6 weeks out (earnings: the first expiry AFTER the report), strikes near the money (delta ~0.35–0.50). A 🔴 lotto is a cheap short-dated call/put with a real catalyst, max one per day. Every idea still gets a limit entry, target, stop and out-by date.
+
 Produce 2–3 options ideas for today, researched properly, and post each as its own message. Then post one short header message FIRST (before the ideas) in this shape:
 `**🎯 Options desk — <Weekday, Month D>** · <n> ideas · market context in one line (futures/indices, any macro print today)`
 
@@ -10,7 +13,7 @@ How to find ideas (do real work, in this order):
 4. Check `node scripts/idea.mjs list` first and do not repeat an open idea on the same ticker.
 
 Each idea post (one message each; SHORT, casual, action-first; under 700 characters; the deep research goes into the ledger thesis, not the post):
-**<🟢/🟡/🔴> <TICKER> — <structure> · <expiry>**
+**<🟢/🟡/🔴> <TICKER> — buy <call/put> · <expiry>**
 **Do:** buy (or sell, for credit structures) <legs with strikes> for **$X.XX** limit (per contract). Max loss $Y.
 **Target:** $A · **Stop:** $B · **Out by:** <date>, no matter what.
 **Why:** one sentence (the single strongest reason: implied vs realized move, catalyst, line).

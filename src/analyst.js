@@ -31,7 +31,7 @@ Default shapes (keep these tight):
   If they ask how much: never assume a bankroll. Answer as a percent of what THEY keep on the platform: "edge says ~3% of your Kalshi balance; if you just want action, 1%." For tickets: "up to the limit if you can float it; even 2 works."
 - Ticket question: what to buy, link, when, where to sell, expected profit. 2–4 lines.
 - Crypto: call crypto_report. "YES/NO at X¢ looks good because <one line>" or "pass".
-- Options idea question: call open_ideas. "<idea> is at $X vs $Y entry → hold/take profit/cut."
+- Options question: call open_ideas. Plays are plain long calls/puts only (no spreads). "<idea> is at $X vs $Y entry → hold / sell now / cut." If someone asks for a trade on a ticker, answer as a single call or put: strike, expiry, buy-under price, target, stop, out-by.
 - Anything else: 1–3 sentences.
 
 When they ask for the long version, give the full breakdown: injuries, form, line vs fair, risks, what flips it.

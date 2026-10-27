@@ -28,8 +28,8 @@ export const PLAYBOOK = [
     'Expect to lose plenty individually. The edge shows up over 50+ plays.',
   ].join('\n') },
   { title: '📈 Options in 30 seconds', color: 0x5865f2, description: [
-    'Weekday mornings: 2–3 ideas. Each has the exact contract, **entry**, **target**, **stop**, **out-by date**. Midday + close: hold / take profit / cut. Scoreboard tracks every idea.',
-    '🟢 spread (max loss = what you paid) · 🟡 earnings vol play · 🔴 lotto (most expire worthless; the hit pays big).',
+    'Weekday mornings: 2–3 plays, **plain calls and puts only** (Robinhood → stock → Trade → Buy Call / Buy Put). Each has the exact strike + expiry, **buy price**, **target**, **stop**, **out-by date**. Midday + close: hold / sell. Scoreboard tracks every play.',
+    '🟢 2–6 week call or put · 🟡 earnings play (buy the call AND the put when direction is unclear) · 🔴 lotto (cheap, short-dated; most expire worthless, the hit pays big). Max loss is always what you paid.',
     '**Exits aren\'t optional.** Target → sell. Stop → sell. Date → sell.',
   ].join('\n') },
   { title: '🤖 Ask the bot', color: 0x57f287, description: [

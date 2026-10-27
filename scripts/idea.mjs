@@ -36,10 +36,13 @@ if (cmd === 'add') {
   const price = Number(args.price); const risk = i.entry - i.stop; const r = risk > 0 ? (price - i.entry) / risk : null;
   Object.assign(i, { status: 'closed', closed: today(), close_price: price, result_r: r == null ? null : Math.round(r * 100) / 100, notes: args.notes || '' });
   await save(state, ideas); console.log(`closed #${i.id} ${i.ticker} at $${price} → ${r == null ? 'n/a' : r.toFixed(2) + 'R'}`);
+} else if (cmd === 'retire') {
+  const i = ideas.find(x => x.id === Number(args.id) && x.status === 'open'); if (!i) { console.error('no such open idea'); process.exit(1); }
+  Object.assign(i, { status: 'retired', closed: today(), notes: args.notes || 'retired' }); await save(state, ideas); console.log(`retired #${i.id} ${i.ticker}`);
 } else if (cmd === 'scoreboard') {
   const closed = ideas.filter(i => i.status === 'closed' && i.result_r != null); const open = ideas.filter(i => i.status === 'open').length;
   const by = {}; for (const i of closed) { const t = by[i.tag] || { w: 0, l: 0, r: 0 }; if (i.result_r > 0) t.w++; else t.l++; t.r += i.result_r; by[i.tag] = t; }
   const w = closed.filter(i => i.result_r > 0).length, l = closed.length - w, avg = closed.length ? closed.reduce((a, i) => a + i.result_r, 0) / closed.length : 0;
   console.log(`${closed.length} closed · ${w}-${l} · avg ${avg.toFixed(2)}R · open ${open} · by tag: ${Object.entries(by).map(([t, x]) => `${t} ${x.w}-${x.l} (${(x.r / (x.w + x.l)).toFixed(2)}R)`).join(' · ') || 'none yet'}`);
 } else if (cmd === 'json') { console.log(JSON.stringify(ideas)); }
-else console.log('usage: idea.mjs add|list|close|scoreboard|json');
+else console.log('usage: idea.mjs add|list|close|retire|scoreboard|json');
