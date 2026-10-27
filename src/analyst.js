@@ -18,7 +18,6 @@ async function runTool(name, input) {
     if (name === 'football_board') return JSON.stringify((await footballLines()).map(r => `${r.league} ${r.date} ${r.awayName} ${Math.round(r.kalshiA * 100)}% @ ${r.homeName} ${Math.round(r.kalshiH * 100)}%`));
     if (name === 'crypto_report') return JSON.stringify(await cryptoReport(input.sym));
     if (name === 'open_ideas') { const { execFile } = await import('node:child_process'); return await new Promise((res) => execFile(process.execPath, ['scripts/idea.mjs', 'json'], { env: process.env, cwd: new URL('..', import.meta.url).pathname }, (e, out) => res(e ? JSON.stringify({ error: e.message }) : out.trim() || '[]'))); }
-    if (name === 'open_ideas') { const { sql } = await import('./db.js'); const rows = await sql`select id, ticker, structure, legs, tag, entry, target, stop, exit_date, catalyst, thesis, status, close_price, result_r, posted_at from option_ideas order by posted_at desc limit 20`; return JSON.stringify(rows); }
   } catch (e) { return JSON.stringify({ error: e.message }); }
   return JSON.stringify({ error: 'unknown tool' });
 }
