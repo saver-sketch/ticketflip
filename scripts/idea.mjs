@@ -21,11 +21,12 @@ async function save(state, ideas) {
   else { const m = await api(`/channels/${CH}/messages`, { method: 'POST', body: JSON.stringify({ content }) }); try { await api(`/channels/${CH}/pins/${m.id}`, { method: 'PUT' }); } catch (e) { console.error(`ledger saved but not pinned (${e.message}); load() falls back to newest LEDGER message`); } }
 }
 const args = Object.fromEntries(process.argv.slice(3).join(' ').split(/\s+--/).filter(Boolean).map(s => { const [k, ...v] = s.replace(/^--/, '').split(' '); return [k, v.join(' ').replace(/^"|"$/g, '')]; }));
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 const cmd = process.argv[2];
 const state = await load(); const ideas = state.ideas;
 if (cmd === 'add') {
   const id = (ideas.reduce((a, i) => Math.max(a, i.id), 0) || 0) + 1;
-  const row = { id, posted: new Date().toISOString().slice(0, 10), ticker: (args.ticker || '').toUpperCase(), structure: args.structure, legs: args.legs, expiry: args.expiry, tag: args.tag || 'green', entry: Number(args.entry), target: Number(args.target), stop: Number(args.stop), exit: args.exit, catalyst: args.catalyst || '', thesis: (args.thesis || '').slice(0, 400), status: 'open' };
+  const row = { id, posted: today(), ticker: (args.ticker || '').toUpperCase(), structure: args.structure, legs: args.legs, expiry: args.expiry, tag: args.tag || 'green', entry: Number(args.entry), target: Number(args.target), stop: Number(args.stop), exit: args.exit, catalyst: args.catalyst || '', thesis: (args.thesis || '').slice(0, 400), status: 'open' };
   ideas.push(row); await save(state, ideas); console.log(`recorded idea #${id} ${row.ticker} ${row.structure}`);
 } else if (cmd === 'list') {
   const open = ideas.filter(i => i.status === 'open'); if (!open.length) console.log('no open ideas');
@@ -33,7 +34,7 @@ if (cmd === 'add') {
 } else if (cmd === 'close') {
   const i = ideas.find(x => x.id === Number(args.id) && x.status === 'open'); if (!i) { console.error('no such open idea'); process.exit(1); }
   const price = Number(args.price); const risk = i.entry - i.stop; const r = risk > 0 ? (price - i.entry) / risk : null;
-  Object.assign(i, { status: 'closed', closed: new Date().toISOString().slice(0, 10), close_price: price, result_r: r == null ? null : Math.round(r * 100) / 100, notes: args.notes || '' });
+  Object.assign(i, { status: 'closed', closed: today(), close_price: price, result_r: r == null ? null : Math.round(r * 100) / 100, notes: args.notes || '' });
   await save(state, ideas); console.log(`closed #${i.id} ${i.ticker} at $${price} → ${r == null ? 'n/a' : r.toFixed(2) + 'R'}`);
 } else if (cmd === 'scoreboard') {
   const closed = ideas.filter(i => i.status === 'closed' && i.result_r != null); const open = ideas.filter(i => i.status === 'open').length;
